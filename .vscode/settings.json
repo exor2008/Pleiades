@@ -1,0 +1,14 @@
+{
+    "editor.formatOnSave": true,
+    "[toml]": {
+        "editor.formatOnSave": true
+    },
+    "rust-analyzer.cargo.target": "thumbv6m-none-eabi",
+    "rust-analyzer.cargo.noDefaultFeatures": true,
+    "rust-analyzer.check.allTargets": false,
+    "rust-analyzer.check.noDefaultFeatures": true,
+    "rust-analyzer.server.extraEnv": {
+        "WIFI_NETWORK": "foo",
+        "WIFI_PASSWORD": "foo",
+    }
+}
