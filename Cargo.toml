@@ -40,6 +40,7 @@ static_cell = "1.0"
 
 defmt = "0.3"
 defmt-rtt = "0.3"
+# embassy-std = "0.5"
 panic-probe = { version = "0.3", features = ["print-defmt"] }
 
 cortex-m = { version = "0.7.6", features = ["critical-section-single-core"] }
@@ -52,6 +53,9 @@ futures = { version = "0.3.17", default-features = false, features = [
 pio-proc = "0.2"
 pio = "0.2.1"
 heapless = "0.7.15"
+smart-leds = "0.3.0"
+fixed = "1.23.1"
+fixed-macro = "1.2"
 
 
 [patch.crates-io]
