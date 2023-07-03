@@ -15,7 +15,7 @@ pub struct Ws2812<'d, P: Instance, const S: usize, const N: usize> {
 
 impl<'d, P: Instance, const S: usize, const N: usize> Ws2812<'d, P, S, N> {
     pub fn new(
-        pio: &mut Common<'d, P>,
+        mut pio: Common<'d, P>,
         mut sm: StateMachine<'d, P, S>,
         dma: impl Peripheral<P = impl Channel> + 'd,
         pin: impl PioPin,

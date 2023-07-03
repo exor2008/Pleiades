@@ -3,44 +3,93 @@
 #![feature(type_alias_impl_trait)]
 #![feature(async_fn_in_trait)]
 #![allow(incomplete_features)]
-use embassy_rp::pio::Instance;
-use smart_leds::RGB8;
+#![feature(core_intrinsics)]
 
-pub mod ws2812;
+use embassy_rp::dma::Channel;
+use embassy_rp::pio::{Common, Instance, PioPin, StateMachine};
+use embassy_rp::Peripheral;
+use embassy_time::{Duration, Timer};
+use smart_leds::RGB;
 
-pub struct Point {
-    pub x: usize,
-    pub y: usize,
+pub mod led_matrix;
+pub mod perlin;
+
+pub trait Tick {
+    async fn tick(&mut self);
 }
 
-pub struct World<'c, P: Instance, const S: usize, const N: usize> {
-    line_size: usize,
-    data: [RGB8; N],
-    ws: ws2812::Ws2812<'c, P, S, N>,
+pub trait Flush {
+    async fn flush(&mut self);
 }
 
-impl<'c, P: Instance, const S: usize, const N: usize> World<'c, P, S, N> {
-    pub fn new(line_size: usize, ws2812: ws2812::Ws2812<'c, P, S, N>) -> Self {
-        Self {
-            line_size: line_size,
-            data: [RGB8::default(); N],
-            ws: ws2812,
+pub struct Fire<'a, P: Instance, const S: usize, const L: usize, const N: usize> {
+    led: led_matrix::LedMatrix<'a, P, S, L, N>,
+    noise: perlin::PerlinNoise,
+    t: usize,
+}
+
+impl<'a, P, const S: usize, const L: usize, const N: usize> Fire<'a, P, S, L, N>
+where
+    P: Instance,
+{
+    pub fn new(
+        pio: Common<'a, P>,
+        sm: StateMachine<'a, P, S>,
+        dma: impl Peripheral<P = impl Channel> + 'a,
+        pin: impl PioPin,
+    ) -> Self {
+        let led = led_matrix::LedMatrix::new(pio, sm, dma, pin);
+        let noise = perlin::PerlinNoise::new();
+        Self { led, noise, t: 0 }
+    }
+}
+
+impl<'a, P, const S: usize, const L: usize, const N: usize> Tick for Fire<'a, P, S, L, N>
+where
+    P: Instance,
+{
+    async fn tick(&mut self) {
+        for x in 0..16 {
+            let xx = x as f64 / 1.6;
+            let yy = self.t as f64 / 10.0;
+            let noise = self.noise.get2d([xx, yy]);
+            let noise = (noise - 0.3) / 0.25;
+            let noise = (noise * 255.0) as u8;
+            self.led.write(x, 15, RGB::new(noise, 0, 0))
         }
+        self.t = self.t.wrapping_add(1);
+        Timer::after(Duration::from_millis(100)).await;
     }
+}
 
-    fn index(&self, x: usize, y: usize) -> usize {
-        match x % 2 == 0 {
-            true => x * self.line_size + y,
-            false => x * self.line_size + (self.line_size - y) - 1,
-        }
+//TODO: Derive macro
+impl<'a, P, const S: usize, const L: usize, const N: usize> Flush for Fire<'a, P, S, L, N>
+where
+    P: Instance,
+{
+    async fn flush(&mut self) {
+        self.led.flush().await;
     }
+}
 
-    pub fn write(&mut self, x: usize, y: usize, color: RGB8) {
-        let index = self.index(x, y);
-        self.data[index] = color;
-    }
+pub enum World<'a, P, const S: usize, const L: usize, const N: usize>
+where
+    P: Instance,
+{
+    Fire(Fire<'a, P, S, L, N>),
+}
 
-    pub async fn flush(&mut self) {
-        self.ws.write(&self.data).await;
+impl<'a, P, const S: usize, const L: usize, const N: usize> World<'a, P, S, L, N>
+where
+    P: Instance,
+{
+    pub fn new_fire(
+        pio: Common<'a, P>,
+        sm: StateMachine<'a, P, S>,
+        dma: impl Peripheral<P = impl Channel> + 'a,
+        pin: impl PioPin,
+    ) -> Self {
+        let fire = Fire::new(pio, sm, dma, pin);
+        World::Fire(fire)
     }
 }

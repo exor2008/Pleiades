@@ -56,6 +56,7 @@ heapless = "0.7.15"
 smart-leds = "0.3.0"
 fixed = "1.23.1"
 fixed-macro = "1.2"
+rand = { version = "0.8.5", default-features = false }
 
 [patch.crates-io]
 cyw43 = { git = "https://github.com/embassy-rs/embassy", rev = "70907d84f197d1c5d5d112ae1172e9070d41b730" }
