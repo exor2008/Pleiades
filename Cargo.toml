@@ -52,7 +52,7 @@ futures = { version = "0.3.17", default-features = false, features = [
 ] }
 pio-proc = "0.2"
 pio = "0.2.1"
-heapless = "0.7.15"
+heapless = "0.7.16"
 smart-leds = "0.3.0"
 fixed = "1.23.1"
 fixed-macro = "1.2"
@@ -73,7 +73,7 @@ embassy-net-driver-channel = { git = "https://github.com/embassy-rs/embassy", re
 [profile.dev]
 debug = 2
 debug-assertions = true
-opt-level = 1
+opt-level = 0
 overflow-checks = true
 
 [profile.release]
