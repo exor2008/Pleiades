@@ -1,4 +1,4 @@
-// PerlinNoise gen taken from https://github.com/processing-js/processing-js/blob/master/src/P5Functions/Math.js
+// Taken from https://github.com/Lapz/perlin_noise.git
 
 use embassy_rp::clocks::RoscRng;
 use rand::Rng;
