@@ -84,7 +84,7 @@ where
 
         self.t = self.t.wrapping_add(1);
         self.led.flush().await;
-        Timer::after(Duration::from_millis(1)).await;
+        Timer::after(Duration::from_millis(10)).await;
     }
 }
 
@@ -111,7 +111,7 @@ where
 
     fn spawn_chanse(&self) -> bool {
         let mut rng = RoscRng;
-        rng.gen_ratio(1, 1000)
+        rng.gen_ratio(1, 700)
     }
 
     fn draw_sparks(&mut self) {
