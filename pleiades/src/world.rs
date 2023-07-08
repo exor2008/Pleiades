@@ -1,9 +1,14 @@
 use crate::ws2812::Ws2812;
 use embassy_rp::pio::Instance;
-pub use fire::{Flush, Tick};
 
 pub mod fire;
+pub trait Tick {
+    async fn tick(&mut self);
+}
 
+pub trait Flush {
+    async fn flush(&mut self);
+}
 pub enum World<'a, P, const S: usize, const L: usize, const C: usize, const N: usize>
 where
     P: Instance,

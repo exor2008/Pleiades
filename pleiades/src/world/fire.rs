@@ -8,17 +8,13 @@ use embassy_rp::clocks::RoscRng;
 use embassy_rp::pio::Instance;
 use embassy_time::{Duration, Timer};
 use heapless::Vec;
+use pleiades_macro_derive::{Flush, From, Into};
 use rand::Rng;
 use smart_leds::RGB8;
 
-pub trait Tick {
-    async fn tick(&mut self);
-}
+use crate::world::{Flush, Tick};
 
-pub trait Flush {
-    async fn flush(&mut self);
-}
-
+#[derive(Flush, Into, From)]
 pub struct Fire<'a, P: Instance, const S: usize, const L: usize, const C: usize, const N: usize> {
     led: led_matrix::LedMatrix<'a, P, S, L, C, N>,
     noise: perlin::PerlinNoise,
@@ -89,38 +85,6 @@ where
         self.t = self.t.wrapping_add(1);
         self.led.flush().await;
         Timer::after(Duration::from_millis(1)).await;
-    }
-}
-
-//TODO: Derive macro
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize> Flush
-    for Fire<'a, P, S, L, C, N>
-where
-    P: Instance,
-{
-    async fn flush(&mut self) {
-        self.led.flush().await;
-    }
-}
-
-//TODO: Derive macro
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize>
-    Into<Ws2812<'a, P, S, N>> for Fire<'a, P, S, L, C, N>
-where
-    P: Instance,
-{
-    fn into(self) -> Ws2812<'a, P, S, N> {
-        self.led.into()
-    }
-}
-
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize>
-    From<Ws2812<'a, P, S, N>> for Fire<'a, P, S, L, C, N>
-where
-    P: Instance,
-{
-    fn from(ws: Ws2812<'a, P, S, N>) -> Self {
-        Self::new(ws)
     }
 }
 
