@@ -29,13 +29,18 @@ async fn main(_spawner: Spawner) {
         Ws2812::new(&mut common, sm0, p.DMA_CH0, p.PIN_28);
 
     let mut world: World<'_, PIO0, STATE_MACHINE, NUM_LEDS_LINE, NUM_LEDS_COLUMN, NUM_LEDS> =
-        World::fire_from(ws2812);
+        World::northen_light_from(ws2812);
+    // World::fire_from(ws2812);
 
     loop {
         match world {
             World::Fire(ref mut fire) => {
                 fire.tick().await;
                 fire.flush().await;
+            }
+            World::NorthenLight(ref mut nl) => {
+                nl.tick().await;
+                nl.flush().await;
             }
         }
     }

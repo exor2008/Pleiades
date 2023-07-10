@@ -6,7 +6,7 @@ use crate::ws2812::Ws2812;
 use core::cmp::max;
 use embassy_rp::clocks::RoscRng;
 use embassy_rp::pio::Instance;
-use embassy_time::{Duration, Timer};
+use embassy_time::{Duration, Ticker};
 use heapless::Vec;
 use pleiades_macro_derive::{Flush, From, Into};
 use rand::Rng;
@@ -20,6 +20,7 @@ pub struct Fire<'a, P: Instance, const S: usize, const L: usize, const C: usize,
     noise: perlin::PerlinNoise,
     colormap: ColorGradient<C>,
     sparks: Vec<Spark<C>, C>,
+    ticker: Ticker,
     t: usize,
 }
 
@@ -31,18 +32,20 @@ where
         let led = led_matrix::LedMatrix::new(ws);
         let noise = perlin::PerlinNoise::new();
         let mut colormap = ColorGradient::new();
+        let ticker = Ticker::every(Duration::from_millis(50));
         let sparks: Vec<Spark<C>, C> = Vec::new();
 
-        colormap.add_color(Color::new(0.0, RGB8::new(50, 0, 5)));
+        colormap.add_color(Color::new(0.0, RGB8::new(50, 0, 15)));
         colormap.add_color(Color::new(0.2, RGB8::new(141, 5, 0)));
         colormap.add_color(Color::new(0.8, RGB8::new(230, 10, 0)));
-        colormap.add_color(Color::new(1.1, RGB8::new(230, 25, 0)));
+        colormap.add_color(Color::new(1.1, RGB8::new(226, 50, 0)));
 
         Self {
             led,
             noise,
             colormap,
             sparks,
+            ticker,
             t: 0,
         }
     }
@@ -75,7 +78,7 @@ where
             // and write it to buffer
             for i in C - height..C {
                 let temp = (C - i - 1) as f32 / (height - 1) as f32;
-                let color = self.colormap.get(temp);
+                let color = self.colormap.get(temp, true);
                 self.led.write(x, i, color);
             }
         }
@@ -84,7 +87,7 @@ where
 
         self.t = self.t.wrapping_add(1);
         self.led.flush().await;
-        Timer::after(Duration::from_millis(10)).await;
+        self.ticker.next().await;
     }
 }
 
@@ -119,7 +122,7 @@ where
         let temp = rng.gen_range(0.7f32..=1.0);
 
         for spark in self.sparks.iter() {
-            let color = self.colormap.get(temp);
+            let color = self.colormap.get(temp, true);
             self.led.write(spark.x as usize, spark.y as usize, color);
         }
     }

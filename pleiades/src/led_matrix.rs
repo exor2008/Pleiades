@@ -33,6 +33,10 @@ impl<'c, P: Instance, const S: usize, const L: usize, const C: usize, const N: u
         self.data[index] = color;
     }
 
+    pub fn write_straight(&mut self, index: usize, color: RGB8) {
+        self.data[index] = color;
+    }
+
     pub async fn flush(&mut self) {
         self.ws.write(&self.data).await;
     }

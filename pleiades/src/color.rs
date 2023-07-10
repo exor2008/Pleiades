@@ -74,15 +74,20 @@ impl<const N: usize> ColorGradient<N> {
             .sort_unstable_by(|a, b| a.pos.partial_cmp(&b.pos).unwrap_or(Ordering::Equal));
     }
 
-    pub fn get(&self, value: f32) -> RGB8 {
+    pub fn get(&self, value: f32, noise: bool) -> RGB8 {
         match self.search_closest(value) {
             Ok(left) => {
                 let c1 = &self.colors[left];
                 let c2 = &self.colors[left + 1];
 
-                let value = (value - c1.pos) / (c2.pos - c1.pos);
-                let value = value + rand_noise(-0.1, 0.1);
-                let value = value.clamp(0.0, 1.0);
+                let value = match noise {
+                    true => {
+                        let value = value + rand_noise(-0.1, 0.1);
+                        value.clamp(0.0, 1.0)
+                    }
+                    false => value,
+                };
+
                 self.lin_interp_colors(c1, c2, value)
             }
             Err(_) => {
