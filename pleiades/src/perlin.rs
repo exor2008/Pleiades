@@ -1,7 +1,8 @@
 // Taken from https://github.com/Lapz/perlin_noise.git
 
 use embassy_rp::clocks::RoscRng;
-use rand::Rng;
+use heapless::Vec;
+use rand::{seq::SliceRandom, Rng};
 
 // #[inline]
 pub fn floor(i: f64) -> f64 {
@@ -227,3 +228,23 @@ fn lerp(t: f64, a: f64, b: f64) -> f64 {
 // Fade function as defined by Ken Perlin.  This eases coordinate values
 // so that they will "ease" towards integral values.  This ends up smoothing
 // the final output.
+
+pub fn rand_float(min: f32, max: f32) -> f32 {
+    let mut rng = RoscRng;
+    rng.gen_range(min..max)
+}
+
+pub fn rand_int(min: u32, max: u32) -> u32 {
+    let mut rng = RoscRng;
+    rng.gen_range(min..max)
+}
+
+pub fn spawn_chance(numerator: u32, denominator: u32) -> bool {
+    let mut rng = RoscRng;
+    rng.gen_ratio(numerator, denominator)
+}
+
+pub fn shuffle<T, const N: usize>(vec: &mut Vec<T, N>) {
+    let mut rng = RoscRng;
+    vec.shuffle(&mut rng);
+}

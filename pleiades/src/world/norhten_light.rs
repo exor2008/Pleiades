@@ -4,13 +4,11 @@ use crate::perlin;
 use crate::color::{Color, ColorGradient};
 use crate::ws2812::Ws2812;
 use core::iter::Sum;
-// use core::ops::Add;
-use embassy_rp::clocks::RoscRng;
 use embassy_rp::pio::Instance;
 use embassy_time::{Duration, Ticker};
-use rand::Rng;
 
 use heapless::Vec;
+use perlin::rand_float;
 use pleiades_macro_derive::{Flush, From, Into};
 
 use smart_leds::RGB8;
@@ -43,7 +41,7 @@ where
 {
     pub fn new(ws: Ws2812<'a, P, S, N>) -> Self {
         let led = led_matrix::LedMatrix::new(ws);
-        let ticker = Ticker::every(Duration::from_millis(10));
+        let ticker = Ticker::every(Duration::from_millis(20));
         let mut colormap = ColorGradient::new();
 
         colormap.add_color(Color::new(0.0, RGB8::new(0, 0, 0)));
@@ -80,14 +78,13 @@ where
 
         for index in 0..N {
             let temperature = sum_pattern.data()[index];
-            let color = self.colormap.get(temperature, false);
+            let color = self.colormap.get(temperature);
             self.led.write_straight(index, color);
         }
 
         self.remove_obsolete_patterns();
 
         self.t = self.t.wrapping_add(1);
-        self.led.flush().await;
         self.ticker.next().await;
     }
 }
@@ -100,8 +97,8 @@ where
     fn spawn_patterns(&mut self) {
         let time_till_last_spawn = self.t as isize - self.last_spawn;
         if !self.patterns.is_full() && time_till_last_spawn > 50 {
-            let cutoff = rand_noise(0.47, 0.55);
-            let lifetime = 300 + rand_noise(-100.0, 100.0) as usize;
+            let cutoff = rand_float(0.52, 0.57);
+            let lifetime = 250 + rand_float(-75.0, 75.0) as usize;
             let pattern: Pattern<L, C, N> = Pattern::new(self.t, cutoff, lifetime);
             self.patterns.push(pattern).unwrap();
             self.last_spawn = self.t as isize;
@@ -145,7 +142,7 @@ impl<const L: usize, const C: usize, const N: usize> Pattern<L, C, N> {
 
     fn fill(noise: perlin::PerlinNoise, t: usize, cutoff: f32) -> [f32; N] {
         let mut data = [f32::default(); N];
-        let shift = rand_noise(0.1, 0.8);
+        let shift = rand_float(0.1, 0.8);
 
         for x in 0..C {
             for y in 0..L {
@@ -217,9 +214,4 @@ impl<const L: usize, const C: usize, const N: usize> From<[f32; N]> for Pattern<
             t: 0,
         }
     }
-}
-
-pub fn rand_noise(min: f32, max: f32) -> f32 {
-    let mut rng = RoscRng;
-    rng.gen_range(min..max)
 }

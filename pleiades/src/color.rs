@@ -1,9 +1,8 @@
 use core::usize;
 
+use crate::perlin::rand_float;
 use core::cmp::Ordering;
-use embassy_rp::clocks::RoscRng;
 use heapless::Vec;
-use rand::Rng;
 use smart_leds::RGB8;
 
 #[derive(Debug)]
@@ -74,21 +73,13 @@ impl<const N: usize> ColorGradient<N> {
             .sort_unstable_by(|a, b| a.pos.partial_cmp(&b.pos).unwrap_or(Ordering::Equal));
     }
 
-    pub fn get(&self, value: f32, noise: bool) -> RGB8 {
+    pub fn get(&self, value: f32) -> RGB8 {
         match self.search_closest(value) {
             Ok(left) => {
                 let c1 = &self.colors[left];
                 let c2 = &self.colors[left + 1];
 
-                let value = match noise {
-                    true => {
-                        let value = value + rand_noise(-0.1, 0.1);
-                        value.clamp(0.0, 1.0)
-                    }
-                    false => value,
-                };
-
-                self.lin_interp_colors(c1, c2, value)
+                ColorGradient::<N>::lin_interp_colors(c1, c2, value)
             }
             Err(_) => {
                 defmt::panic!("Error while during bin search");
@@ -96,7 +87,24 @@ impl<const N: usize> ColorGradient<N> {
         }
     }
 
-    fn lin_interp_colors(&self, c1: &Color, c2: &Color, value: f32) -> RGB8 {
+    pub fn get_noised(&self, value: f32, min: f32, max: f32) -> RGB8 {
+        match self.search_closest(value) {
+            Ok(left) => {
+                let c1 = &self.colors[left];
+                let c2 = &self.colors[left + 1];
+
+                let value = value + rand_float(min, max);
+                let value = value.clamp(0.0, 1.0);
+
+                ColorGradient::<N>::lin_interp_colors(c1, c2, value)
+            }
+            Err(_) => {
+                defmt::panic!("Error while during bin search");
+            }
+        }
+    }
+
+    pub fn lin_interp_colors(c1: &Color, c2: &Color, value: f32) -> RGB8 {
         let coef = (value - c1.pos) / (c2.pos - c1.pos);
 
         let new_r = (c1.rgb.r as f32 + (c2.rgb.r as f32 - c1.rgb.r as f32) * coef) as u8;
@@ -120,9 +128,4 @@ impl<const N: usize> ColorGradient<N> {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum BinSearchError {
     InvalidSearch,
-}
-
-pub fn rand_noise(min: f32, max: f32) -> f32 {
-    let mut rng = RoscRng;
-    rng.gen_range(min..max)
 }

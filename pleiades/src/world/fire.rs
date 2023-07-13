@@ -35,10 +35,15 @@ where
         let ticker = Ticker::every(Duration::from_millis(50));
         let sparks: Vec<Spark<C>, C> = Vec::new();
 
-        colormap.add_color(Color::new(0.0, RGB8::new(50, 0, 15)));
-        colormap.add_color(Color::new(0.2, RGB8::new(141, 5, 0)));
-        colormap.add_color(Color::new(0.8, RGB8::new(230, 10, 0)));
-        colormap.add_color(Color::new(1.1, RGB8::new(226, 50, 0)));
+        // colormap.add_color(Color::new(0.0, RGB8::new(50, 0, 5)));
+        // colormap.add_color(Color::new(0.2, RGB8::new(141, 5, 0)));
+        // colormap.add_color(Color::new(0.8, RGB8::new(230, 10, 0)));
+        // colormap.add_color(Color::new(1.1, RGB8::new(226, 50, 0)));
+
+        colormap.add_color(Color::new(0.0, RGB8::new(1, 0, 0)));
+        colormap.add_color(Color::new(0.2, RGB8::new(5, 2, 0)));
+        colormap.add_color(Color::new(0.8, RGB8::new(25, 5, 0)));
+        colormap.add_color(Color::new(1.1, RGB8::new(50, 10, 0)));
 
         Self {
             led,
@@ -78,7 +83,7 @@ where
             // and write it to buffer
             for i in C - height..C {
                 let temp = (C - i - 1) as f32 / (height - 1) as f32;
-                let color = self.colormap.get(temp, true);
+                let color = self.colormap.get_noised(temp, -0.1, 0.1);
                 self.led.write(x, i, color);
             }
         }
@@ -86,7 +91,6 @@ where
         self.draw_sparks();
 
         self.t = self.t.wrapping_add(1);
-        self.led.flush().await;
         self.ticker.next().await;
     }
 }
@@ -96,7 +100,7 @@ where
     P: Instance,
 {
     fn spawn_spark(&mut self, x: usize, height: usize) {
-        if height < (C - 1) && self.spawn_chanse() {
+        if height < (C - 1) && perlin::spawn_chance(1, 300) {
             let spark = Spark {
                 x: x as isize,
                 y: (C - 1 - height) as isize,
@@ -112,17 +116,12 @@ where
             .retain(|spark| (spark.x >= 0) && (spark.x < C as isize) && (spark.y >= 0));
     }
 
-    fn spawn_chanse(&self) -> bool {
-        let mut rng = RoscRng;
-        rng.gen_ratio(1, 700)
-    }
-
     fn draw_sparks(&mut self) {
         let mut rng = RoscRng;
         let temp = rng.gen_range(0.7f32..=1.0);
 
         for spark in self.sparks.iter() {
-            let color = self.colormap.get(temp, true);
+            let color = self.colormap.get_noised(temp, -0.2, 0.2);
             self.led.write(spark.x as usize, spark.y as usize, color);
         }
     }
@@ -137,7 +136,7 @@ struct Spark<const C: usize> {
 impl<const C: usize> Spark<C> {
     fn up(&mut self) {
         let mut rng = RoscRng;
-        let dir: isize = rng.gen_range(-1..=1);
+        let dir: isize = rng.gen_range(-1..=2);
 
         self.y -= 1;
         self.x += dir;

@@ -28,9 +28,17 @@ async fn main(_spawner: Spawner) {
     let ws2812: Ws2812<PIO0, STATE_MACHINE, NUM_LEDS> =
         Ws2812::new(&mut common, sm0, p.DMA_CH0, p.PIN_28);
 
-    let mut world: World<'_, PIO0, STATE_MACHINE, NUM_LEDS_LINE, NUM_LEDS_COLUMN, NUM_LEDS> =
-        World::northen_light_from(ws2812);
-    // World::fire_from(ws2812);
+    let mut world: World<
+        '_,
+        PIO0,
+        STATE_MACHINE,
+        NUM_LEDS_LINE,
+        NUM_LEDS_COLUMN,
+        NUM_LEDS,
+        { 2 * NUM_LEDS },
+        // > = World::matrix_from(ws2812);
+        // > = World::fire_from(ws2812);
+    > = World::northen_light_from(ws2812);
 
     loop {
         match world {
@@ -42,9 +50,14 @@ async fn main(_spawner: Spawner) {
                 nl.tick().await;
                 nl.flush().await;
             }
+            World::Matrix(ref mut night) => {
+                night.tick().await;
+                night.flush().await;
+            }
         }
     }
 
+    // let ws2812: Ws2812<PIO0, STATE_MACHINE, NUM_LEDS> = world.into();
     // let mut ws2812: Ws2812<PIO0, STATE_MACHINE, NUM_LEDS> = world.into();
     // ws2812.write(&[RGB::new(0, 0, 0); 256]).await;
     // }

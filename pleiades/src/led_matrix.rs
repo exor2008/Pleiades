@@ -45,6 +45,10 @@ impl<'c, P: Instance, const S: usize, const L: usize, const C: usize, const N: u
         self.data = [RGB8::default(); N];
     }
 
+    pub fn bg(&mut self, bg: RGB8) {
+        self.data = [bg; N];
+    }
+
     fn index(&self, x: usize, y: usize) -> usize {
         match x % 2 == 0 {
             true => x * L + y,
