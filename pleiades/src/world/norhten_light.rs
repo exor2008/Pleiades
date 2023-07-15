@@ -147,8 +147,8 @@ impl<const L: usize, const C: usize, const N: usize> Pattern<L, C, N> {
         for x in 0..C {
             for y in 0..L {
                 // Generate noise for northen light
-                let xx = (x.wrapping_add(t)) as f64 / 5.0;
-                let yy = (y.wrapping_add(t)) as f64 / 5.0;
+                let xx = (x.wrapping_add(t)) as f32 / 5.0;
+                let yy = (y.wrapping_add(t)) as f32 / 5.0;
                 // let zz = t as f32;
 
                 let noise = noise.get2d([xx, yy]) as f32;

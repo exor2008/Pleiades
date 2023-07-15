@@ -38,7 +38,8 @@ async fn main(_spawner: Spawner) {
         { 2 * NUM_LEDS },
         // > = World::matrix_from(ws2812);
         // > = World::fire_from(ws2812);
-    > = World::northen_light_from(ws2812);
+        // > = World::northen_light_from(ws2812);
+    > = World::voronoi_from(ws2812);
 
     loop {
         match world {
@@ -53,6 +54,10 @@ async fn main(_spawner: Spawner) {
             World::Matrix(ref mut night) => {
                 night.tick().await;
                 night.flush().await;
+            }
+            World::Voronoi(ref mut voronoi) => {
+                voronoi.tick().await;
+                voronoi.flush().await;
             }
         }
     }

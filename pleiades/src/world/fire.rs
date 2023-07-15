@@ -66,14 +66,14 @@ where
 
         for x in 0..C {
             // Generate noise for fire shape
-            let xx = x as f64 / 2.6;
-            let yy = self.t as f64 / 10.0;
+            let xx = x as f32 / 2.6;
+            let yy = self.t as f32 / 10.0;
             let noise = self.noise.get2d([xx, yy]);
             let noise = (noise - 0.3) / 0.25; // [0..1]
             let noise = noise.clamp(0.0, 1.0);
 
             //Determine the height of fire pillar
-            let height = (noise * (C - 6) as f64) as usize;
+            let height = (noise * (C - 6) as f32) as usize;
             let height = max(2, height);
 
             // Process the sparks

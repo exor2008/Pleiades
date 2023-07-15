@@ -98,7 +98,7 @@ where
 
             let cool_rate = perlin::rand_float(0.005, 0.015);
             let temperature = perlin::rand_float(0.8, 1.0);
-            let move_after = perlin::rand_int(1, 12) as usize;
+            let move_after = perlin::rand_uint(1, 12) as usize;
 
             let letter = Letters::new_falling(x, 0, move_after, temperature, cool_rate);
             if let Err(_) = self.letters.push(letter) {

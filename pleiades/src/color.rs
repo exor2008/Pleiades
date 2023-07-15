@@ -82,7 +82,7 @@ impl<const N: usize> ColorGradient<N> {
                 ColorGradient::<N>::lin_interp_colors(c1, c2, value)
             }
             Err(_) => {
-                defmt::panic!("Error while during bin search");
+                defmt::panic!("Error while during bin search. Value: {}", value);
             }
         }
     }

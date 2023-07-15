@@ -4,6 +4,7 @@ use embassy_rp::pio::Instance;
 pub mod fire;
 pub mod matrix;
 pub mod norhten_light;
+pub mod voronoi;
 // pub mod starry_night;
 pub trait Tick {
     async fn tick(&mut self);
@@ -27,6 +28,7 @@ pub enum World<
     Fire(fire::Fire<'a, P, S, L, C, N>),
     NorthenLight(norhten_light::NorthenLight<'a, P, S, L, C, N>),
     Matrix(matrix::Matrix<'a, P, S, L, C, N, N2>), // StarryNight(starry_night::StarryNight<'a, P, S, L, C, N>),
+    Voronoi(voronoi::Voronoi<'a, P, S, L, C, N>),
 }
 
 impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize, const N2: usize>
@@ -49,6 +51,11 @@ where
         World::Matrix(matrix)
     }
 
+    pub fn voronoi_from(ws: Ws2812<'a, P, S, N>) -> Self {
+        let voronoi = voronoi::Voronoi::from(ws);
+        World::Voronoi(voronoi)
+    }
+
     // pub fn starry_night_from(ws: Ws2812<'a, P, S, N>) -> Self {
     //     let starry_night = starry_night::StarryNight::from(ws);
     //     World::StarryNight(starry_night)
@@ -65,6 +72,7 @@ where
             Self::Fire(fire) => fire.into(),
             Self::NorthenLight(nl) => nl.into(),
             Self::Matrix(m) => m.into(),
+            Self::Voronoi(v) => v.into(),
             // Self::StarryNight(night) => night.into(),
         }
     }
