@@ -5,6 +5,7 @@
 #![allow(incomplete_features)]
 #![feature(core_intrinsics)]
 
+pub mod apds9960;
 pub mod color;
 pub mod led_matrix;
 pub mod perlin;
