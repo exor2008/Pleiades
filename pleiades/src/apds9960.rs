@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use core::option::Option;
 use embassy_rp::i2c::Instance;
 use embassy_rp::i2c::{self, Error, Mode};
@@ -7,40 +8,40 @@ pub const DEV_ADDR: u8 = 0x39;
 
 pub struct Register;
 impl Register {
-    pub const ENABLE: u8 = 0x80;
-    pub const ATIME: u8 = 0x81;
-    pub const WTIME: u8 = 0x83;
-    pub const AILTL: u8 = 0x84;
-    pub const AIHTL: u8 = 0x86;
-    pub const PILT: u8 = 0x89;
-    pub const PIHT: u8 = 0x8B;
-    pub const CONFIG1: u8 = 0x8D;
+    const ENABLE: u8 = 0x80;
+    const ATIME: u8 = 0x81;
+    const WTIME: u8 = 0x83;
+    const AILTL: u8 = 0x84;
+    const AIHTL: u8 = 0x86;
+    const PILT: u8 = 0x89;
+    const PIHT: u8 = 0x8B;
+    const CONFIG1: u8 = 0x8D;
     const CONTROL: u8 = 0x8F;
-    pub const CONFIG2: u8 = 0x90;
-    pub const ID: u8 = 0x92;
-    pub const STATUS: u8 = 0x93;
-    pub const CDATAL: u8 = 0x94;
-    pub const RDATAL: u8 = 0x96;
-    pub const GDATAL: u8 = 0x98;
-    pub const BDATAL: u8 = 0x9A;
-    pub const PDATA: u8 = 0x9C;
-    pub const POFFSET_UR: u8 = 0x9D;
-    pub const POFFSET_DL: u8 = 0x9E;
-    pub const GPENTH: u8 = 0xA0;
-    pub const GPEXTH: u8 = 0xA1;
-    pub const GCONFIG1: u8 = 0xA2;
-    pub const GOFFSET_U: u8 = 0xA4;
-    pub const GOFFSET_D: u8 = 0xA5;
-    pub const GOFFSET_L: u8 = 0xA6;
-    pub const GOFFSET_R: u8 = 0xA7;
-    pub const GCONFIG4: u8 = 0xAB;
-    pub const GFLVL: u8 = 0xAE;
-    pub const GSTATUS: u8 = 0xAF;
-    pub const IFORCE: u8 = 0xE4;
-    pub const PICLEAR: u8 = 0xE5;
-    pub const CICLEAR: u8 = 0xE6;
-    pub const AICLEAR: u8 = 0xE7;
-    pub const GFIFO_U: u8 = 0xFC;
+    const CONFIG2: u8 = 0x90;
+    const ID: u8 = 0x92;
+    const STATUS: u8 = 0x93;
+    const CDATAL: u8 = 0x94;
+    const RDATAL: u8 = 0x96;
+    const GDATAL: u8 = 0x98;
+    const BDATAL: u8 = 0x9A;
+    const PDATA: u8 = 0x9C;
+    const POFFSET_UR: u8 = 0x9D;
+    const POFFSET_DL: u8 = 0x9E;
+    const GPENTH: u8 = 0xA0;
+    const GPEXTH: u8 = 0xA1;
+    const GCONFIG1: u8 = 0xA2;
+    const GOFFSET_U: u8 = 0xA4;
+    const GOFFSET_D: u8 = 0xA5;
+    const GOFFSET_L: u8 = 0xA6;
+    const GOFFSET_R: u8 = 0xA7;
+    const GCONFIG4: u8 = 0xAB;
+    const GFLVL: u8 = 0xAE;
+    const GSTATUS: u8 = 0xAF;
+    const IFORCE: u8 = 0xE4;
+    const PICLEAR: u8 = 0xE5;
+    const CICLEAR: u8 = 0xE6;
+    const AICLEAR: u8 = 0xE7;
+    const GFIFO_U: u8 = 0xFC;
 }
 
 pub struct Enable(u8);
@@ -94,7 +95,7 @@ impl<'d, T: Instance> Apds9960<'d, T, i2c::Async> {
         Ok(())
     }
 
-    pub async fn read(&mut self) -> Result<u8, Error> {
+    async fn read(&mut self) -> Result<u8, Error> {
         let mut is_prox = [0u8];
         self.i2c
             .write_read(DEV_ADDR, &[Register::STATUS], &mut is_prox)
@@ -118,6 +119,10 @@ impl<'d, T: Instance> Apds9960<'d, T, i2c::Async> {
         }
         None
     }
+
+    pub fn command(&mut self) -> Option<Command> {
+        self.sm.command()
+    }
 }
 
 impl<'d, T: Instance, M: Mode> Into<i2c::I2c<'d, T, M>> for Apds9960<'d, T, M> {
@@ -134,9 +139,12 @@ struct StateMashine {
     updown_checks: u32,
     recorded: u32,
     init_dist: u8,
+    command: Option<Command>,
 }
 
 impl StateMashine {
+    const UP_DOWN_THRESHOLD: i16 = 1;
+
     fn next(&mut self, dist: u8) {
         self.state = self.process(dist);
     }
@@ -165,7 +173,7 @@ impl StateMashine {
                     }
                 },
                 // dist == 0
-                dist => {
+                _dist => {
                     self.reset();
                     State::Check
                 }
@@ -177,7 +185,7 @@ impl StateMashine {
                     // ... and now finished
                     true => {
                         // Swing
-                        defmt::info!("Swing");
+                        self.command = Some(Command::Swing);
                         self.reset();
                         State::Check
                     }
@@ -191,7 +199,7 @@ impl StateMashine {
                 false => match dist == 0 {
                     true => {
                         // Swing
-                        defmt::info!("Swing");
+                        self.command = Some(Command::Swing);
                         self.reset();
                         State::Check
                     }
@@ -213,12 +221,12 @@ impl StateMashine {
                     // ... switch the power
                     checks if checks == 20 => {
                         // Power Switch
-                        defmt::info!("Switch Power");
+                        self.command = Some(Command::SwitchPower);
                         self.power_checks += 1;
                         State::Record
                     }
                     // ... for a long time
-                    checks => State::Record,
+                    _checks => State::Record,
                 },
                 // Gesture is over
                 dist if dist == 0 => {
@@ -230,21 +238,23 @@ impl StateMashine {
                 dist => match self.updown_checks > 5 {
                     true => {
                         // UP DOWN
-                        match self.init_dist < dist {
-                            true => {
+                        match (self.init_dist as i16) - (dist as i16) {
+                            //self.init_dist < dist {
+                            d if d < -StateMashine::UP_DOWN_THRESHOLD => {
                                 //DOWN
-                                defmt::info!("Down");
+                                self.command = Some(Command::Level(Direction::Down));
                                 self.updown_checks = 0;
                                 self.init_dist = dist;
                                 State::Record
                             }
-                            false => {
+                            d if d > StateMashine::UP_DOWN_THRESHOLD => {
                                 // UP
-                                defmt::info!("Up");
+                                self.command = Some(Command::Level(Direction::Up));
                                 self.updown_checks = 0;
                                 self.init_dist = dist;
                                 State::Record
                             }
+                            _d => State::Record,
                         }
                     }
                     false => {
@@ -255,13 +265,46 @@ impl StateMashine {
             },
         }
     }
+
+    pub fn command(&mut self) -> Option<Command> {
+        if let Some(command) = self.command {
+            self.command = None;
+            return Some(command);
+        }
+        None
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Command {
     Swing,
     SwitchPower,
-    Level(u8),
+    Level(Direction),
+}
+
+impl defmt::Format for Command {
+    fn format(&self, fmt: defmt::Formatter) {
+        match self {
+            Command::Swing => defmt::write!(fmt, "Swing"),
+            Command::SwitchPower => defmt::write!(fmt, "SwitchPower"),
+            Command::Level(direction) => defmt::write!(fmt, "Level({:?})", direction),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Direction {
+    Up,
+    Down,
+}
+
+impl defmt::Format for Direction {
+    fn format(&self, fmt: defmt::Formatter) {
+        match self {
+            Direction::Up => defmt::write!(fmt, "Up"),
+            Direction::Down => defmt::write!(fmt, "Down"),
+        }
+    }
 }
 
 #[derive(Debug)]

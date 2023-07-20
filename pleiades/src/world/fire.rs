@@ -1,24 +1,25 @@
+use super::OnDirection;
+use crate::apds9960::Direction;
+use crate::color::ColorGradient;
 use crate::led_matrix;
 use crate::perlin;
-
-use crate::color::{Color, ColorGradient};
+use crate::world::{Flush, Tick};
 use crate::ws2812::Ws2812;
-use core::cmp::max;
+use core::cmp::{max, min};
 use embassy_rp::clocks::RoscRng;
 use embassy_rp::pio::Instance;
 use embassy_time::{Duration, Ticker};
 use heapless::Vec;
 use pleiades_macro_derive::{Flush, From, Into};
 use rand::Rng;
-use smart_leds::RGB8;
-
-use crate::world::{Flush, Tick};
+use smart_leds::hsv::Hsv;
 
 #[derive(Flush, Into, From)]
 pub struct Fire<'a, P: Instance, const S: usize, const L: usize, const C: usize, const N: usize> {
     led: led_matrix::LedMatrix<'a, P, S, L, C, N>,
     noise: perlin::PerlinNoise,
-    colormap: ColorGradient<C>,
+    colormap: ColorGradient<4>,
+    height: Height<L, 1, 3, 15>,
     sparks: Vec<Spark<C>, C>,
     ticker: Ticker,
     t: usize,
@@ -31,24 +32,16 @@ where
     pub fn new(ws: Ws2812<'a, P, S, N>) -> Self {
         let led = led_matrix::LedMatrix::new(ws);
         let noise = perlin::PerlinNoise::new();
-        let mut colormap = ColorGradient::new();
+        let colormap = Fire::<P, S, L, C, N>::get_colormap();
+        let height = Height::new(6);
         let ticker = Ticker::every(Duration::from_millis(50));
         let sparks: Vec<Spark<C>, C> = Vec::new();
-
-        // colormap.add_color(Color::new(0.0, RGB8::new(50, 0, 5)));
-        // colormap.add_color(Color::new(0.2, RGB8::new(141, 5, 0)));
-        // colormap.add_color(Color::new(0.8, RGB8::new(230, 10, 0)));
-        // colormap.add_color(Color::new(1.1, RGB8::new(226, 50, 0)));
-
-        colormap.add_color(Color::new(0.0, RGB8::new(1, 0, 0)));
-        colormap.add_color(Color::new(0.2, RGB8::new(5, 2, 0)));
-        colormap.add_color(Color::new(0.8, RGB8::new(25, 5, 0)));
-        colormap.add_color(Color::new(1.1, RGB8::new(50, 10, 0)));
 
         Self {
             led,
             noise,
             colormap,
+            height,
             sparks,
             ticker,
             t: 0,
@@ -73,7 +66,7 @@ where
             let noise = noise.clamp(0.0, 1.0);
 
             //Determine the height of fire pillar
-            let height = (noise * (C - 6) as f32) as usize;
+            let height = (noise * (L - self.height.value()) as f32) as usize;
             let height = max(2, height);
 
             // Process the sparks
@@ -118,11 +111,57 @@ where
 
     fn draw_sparks(&mut self) {
         let mut rng = RoscRng;
-        let temp = rng.gen_range(0.7f32..=1.0);
+        let temp = rng.gen_range(0.8f32..=1.0);
 
         for spark in self.sparks.iter() {
             let color = self.colormap.get_noised(temp, -0.2, 0.2);
             self.led.write(spark.x as usize, spark.y as usize, color);
+        }
+    }
+
+    fn get_colormap() -> ColorGradient<4> {
+        let pos = [0.0, 0.2, 0.8, 1.01];
+        let hsv = [
+            Hsv {
+                hue: 0,
+                sat: 255,
+                val: 48,
+            },
+            Hsv {
+                hue: 1,
+                sat: 255,
+                val: 100,
+            },
+            Hsv {
+                hue: 1,
+                sat: 255,
+                val: 150,
+            },
+            Hsv {
+                hue: 9,
+                sat: 255,
+                val: 200,
+            },
+        ];
+        ColorGradient::from_hsv(pos, hsv)
+    }
+}
+
+impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize> OnDirection
+    for Fire<'a, P, S, L, C, N>
+where
+    P: Instance,
+{
+    fn on_direction(&mut self, direction: Direction) {
+        match direction {
+            Direction::Up => {
+                self.colormap.change_value(20);
+                self.height.up();
+            }
+            Direction::Down => {
+                self.colormap.change_value(-20);
+                self.height.down();
+            }
         }
     }
 }
@@ -140,5 +179,48 @@ impl<const C: usize> Spark<C> {
 
         self.y -= 1;
         self.x += dir;
+    }
+}
+
+struct Height<const L: usize, const COOLDOWNL: u8, const MIN: usize, const MAX: usize> {
+    value: usize,
+    cooldown: u8,
+}
+
+impl<const L: usize, const COOLDOWNL: u8, const MIN: usize, const MAX: usize>
+    Height<L, COOLDOWNL, MIN, MAX>
+{
+    fn new(value: usize) -> Self {
+        Height { value, cooldown: 0 }
+    }
+
+    fn down(&mut self) {
+        match self.cooldown == 0 {
+            true => {
+                self.cooldown = COOLDOWNL;
+                self.value += 1;
+                self.value = min(self.value, MAX);
+            }
+            false => {
+                self.cooldown -= 1;
+            }
+        }
+    }
+
+    fn up(&mut self) {
+        match self.cooldown == 0 {
+            true => {
+                self.cooldown = COOLDOWNL;
+                self.value -= 1;
+                self.value = max(self.value, MIN);
+            }
+            false => {
+                self.cooldown -= 1;
+            }
+        }
+    }
+
+    fn value(&self) -> &usize {
+        &self.value
     }
 }

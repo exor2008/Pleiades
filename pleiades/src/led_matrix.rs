@@ -1,6 +1,7 @@
 use crate::ws2812::Ws2812;
 use embassy_rp::pio::Instance;
 use smart_leds::RGB8;
+
 pub struct Point {
     pub x: usize,
     pub y: usize,

@@ -1,4 +1,5 @@
-use crate::ws2812::Ws2812;
+use crate::{apds9960::Direction, ws2812::Ws2812};
+use core::usize;
 use embassy_rp::pio::Instance;
 
 pub mod fire;
@@ -12,6 +13,10 @@ pub trait Tick {
 
 pub trait Flush {
     async fn flush(&mut self);
+}
+
+pub trait OnDirection {
+    fn on_direction(&mut self, direction: Direction);
 }
 
 pub enum World<
@@ -74,6 +79,22 @@ where
             Self::Matrix(m) => m.into(),
             Self::Voronoi(v) => v.into(),
             // Self::StarryNight(night) => night.into(),
+        }
+    }
+}
+
+impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize, const N2: usize>
+    OnDirection for World<'a, P, S, L, C, N, N2>
+where
+    P: Instance,
+{
+    fn on_direction(&mut self, direction: Direction) {
+        match self {
+            Self::Fire(fire) => fire.on_direction(direction),
+            Self::NorthenLight(nl) => nl.on_direction(direction),
+            Self::Matrix(m) => m.on_direction(direction),
+            Self::Voronoi(v) => v.on_direction(direction),
+            // Self::StarryNight(night) => night.on_direction(direction),
         }
     }
 }

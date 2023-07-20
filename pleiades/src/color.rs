@@ -1,8 +1,9 @@
-use core::usize;
-
 use crate::perlin::rand_float;
+use core::cmp::max;
 use core::cmp::Ordering;
+use core::usize;
 use heapless::Vec;
+use smart_leds::hsv::{hsv2rgb, Hsv};
 use smart_leds::RGB8;
 
 #[derive(Debug)]
@@ -53,14 +54,34 @@ impl PartialOrd for Color {
     }
 }
 
-pub struct ColorGradient<const N: usize> {
-    colors: Vec<Color, N>,
+pub struct ColorGradient<const COLORS: usize> {
+    colors: Vec<Color, COLORS>,
+    hsv: [Hsv; COLORS],
+    diff: i8,
 }
 
-impl<const N: usize> ColorGradient<N> {
+impl<const COLORS: usize> ColorGradient<COLORS> {
     pub fn new() -> Self {
-        let colors: Vec<Color, N> = Vec::new();
-        ColorGradient { colors }
+        let colors: Vec<Color, COLORS> = Vec::new();
+        let hsv = [Hsv::default(); COLORS];
+        ColorGradient {
+            colors,
+            hsv,
+            diff: 0,
+        }
+    }
+
+    pub fn from_hsv(pos: [f32; COLORS], hsv: [Hsv; COLORS]) -> Self {
+        let colors: Vec<Color, COLORS> = pos
+            .iter()
+            .zip(hsv.iter())
+            .map(|(p, c)| Color::new(*p, hsv2rgb(*c)))
+            .collect();
+        ColorGradient {
+            colors,
+            hsv,
+            diff: 0,
+        }
     }
 
     pub fn add_color(&mut self, color: Color) {
@@ -73,13 +94,21 @@ impl<const N: usize> ColorGradient<N> {
             .sort_unstable_by(|a, b| a.pos.partial_cmp(&b.pos).unwrap_or(Ordering::Equal));
     }
 
+    pub fn set_rgb(&mut self, i: usize, rgb: RGB8) {
+        self.colors[i].rgb = rgb;
+    }
+
+    pub fn set_color(&mut self, i: usize, color: Color) {
+        self.colors[i] = color;
+    }
+
     pub fn get(&self, value: f32) -> RGB8 {
         match self.search_closest(value) {
             Ok(left) => {
                 let c1 = &self.colors[left];
                 let c2 = &self.colors[left + 1];
 
-                ColorGradient::<N>::lin_interp_colors(c1, c2, value)
+                ColorGradient::<COLORS>::lin_interp_colors(c1, c2, value)
             }
             Err(_) => {
                 defmt::panic!("Error while during bin search. Value: {}", value);
@@ -96,7 +125,7 @@ impl<const N: usize> ColorGradient<N> {
                 let value = value + rand_float(min, max);
                 let value = value.clamp(0.0, 1.0);
 
-                ColorGradient::<N>::lin_interp_colors(c1, c2, value)
+                ColorGradient::<COLORS>::lin_interp_colors(c1, c2, value)
             }
             Err(_) => {
                 defmt::panic!("Error while during bin search");
@@ -113,6 +142,7 @@ impl<const N: usize> ColorGradient<N> {
 
         RGB8::new(new_r, new_g, new_b)
     }
+
     fn search_closest(&self, value: f32) -> Result<usize, BinSearchError> {
         for i in 0..self.colors.len() {
             if self.colors[i] > value {
@@ -121,6 +151,20 @@ impl<const N: usize> ColorGradient<N> {
         }
         defmt::error!("Error search: value={}", value);
         Err(BinSearchError::InvalidSearch)
+    }
+
+    pub fn change_value(&mut self, diff: i8) {
+        self.diff = self.diff.saturating_add(diff);
+
+        self.colors
+            .iter_mut()
+            .zip(self.hsv.iter())
+            .for_each(|(color, hsv)| {
+                let mut new_hsv = *hsv;
+                new_hsv.val = new_hsv.val.saturating_add_signed(self.diff);
+                new_hsv.val = max(new_hsv.val, 1);
+                color.rgb = hsv2rgb(new_hsv)
+            })
     }
 }
 

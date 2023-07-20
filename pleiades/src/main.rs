@@ -12,9 +12,8 @@ use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Ticker};
 use pleiades::apds9960::{Apds9960, Command};
-use pleiades::world::{Flush, Tick, World};
+use pleiades::world::{Flush, OnDirection, Tick, World};
 use pleiades::ws2812::Ws2812;
-
 use {defmt_rtt as _, panic_probe as _};
 
 const NUM_LEDS_LINE: usize = 16;
@@ -61,7 +60,13 @@ async fn main(spawner: Spawner) {
     // > = World::voronoi_from(ws2812);
 
     loop {
-        // let command = CHANNEL.try_recv();
+        if let Ok(command) = CHANNEL.try_recv() {
+            defmt::info!("Command!: {}", command);
+            match command {
+                Command::Level(direction) => world.on_direction(direction),
+                _ => {}
+            }
+        }
         match world {
             World::Fire(ref mut fire) => {
                 fire.tick().await;
@@ -100,7 +105,11 @@ async fn sensor_task(mut apds: Apds9960<'static, I2C0, Async>) -> ! {
         //     defmt::info!("Dist: {}", d);
         // }
         apds.gesture().await;
-        // CHANNEL.try_send(Command::Power).unwrap();
+        if let Some(command) = apds.command() {
+            if let Err(_err) = CHANNEL.try_send(command) {
+                defmt::error!("Command channel buffer is full");
+            }
+        }
         ticker.next().await;
     }
 }

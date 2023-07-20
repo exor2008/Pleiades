@@ -1,19 +1,17 @@
+use super::OnDirection;
+use crate::apds9960::Direction;
+use crate::color::{Color, ColorGradient};
 use crate::led_matrix;
 use crate::perlin;
-
-use crate::color::{Color, ColorGradient};
+use crate::world::{Flush, Tick};
 use crate::ws2812::Ws2812;
 use core::iter::Sum;
 use embassy_rp::pio::Instance;
 use embassy_time::{Duration, Ticker};
-
 use heapless::Vec;
 use perlin::rand_float;
 use pleiades_macro_derive::{Flush, From, Into};
-
 use smart_leds::RGB8;
-
-use crate::world::{Flush, Tick};
 
 const PATTERNS: usize = 6;
 
@@ -112,6 +110,23 @@ where
     fn remove_obsolete_patterns(&mut self) {
         self.patterns
             .retain(|pattern| pattern.t <= pattern.lifetime);
+    }
+}
+
+impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize> OnDirection
+    for NorthenLight<'a, P, S, L, C, N>
+where
+    P: Instance,
+{
+    fn on_direction(&mut self, direction: Direction) {
+        match direction {
+            Direction::Up => {
+                todo!("Implemnt UP for NL");
+            }
+            Direction::Down => {
+                todo!("Implemnt DOWN for NL");
+            }
+        }
     }
 }
 
