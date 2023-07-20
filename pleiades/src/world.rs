@@ -98,3 +98,122 @@ where
         }
     }
 }
+
+pub struct Switch {
+    counter: usize,
+    prev_counter: usize,
+    is_on: bool,
+}
+
+impl Switch {
+    pub fn new() -> Self {
+        Switch {
+            counter: 1,
+            prev_counter: Default::default(),
+            is_on: true,
+        }
+    }
+
+    pub fn switch_world<
+        'a,
+        P: Instance,
+        const S: usize,
+        const L: usize,
+        const C: usize,
+        const N: usize,
+        const N2: usize,
+    >(
+        &mut self,
+        world: World<'a, P, S, L, C, N, N2>,
+    ) -> World<'a, P, S, L, C, N, N2> {
+        // Destroy old world and return peripherial resources
+        self.counter += 1;
+        self.counter = if self.counter > 4 { 1 } else { self.counter }; // TODO: edit
+        self.get_world(world)
+    }
+
+    fn turn_off<
+        'a,
+        P: Instance,
+        const S: usize,
+        const L: usize,
+        const C: usize,
+        const N: usize,
+        const N2: usize,
+    >(
+        &mut self,
+        world: World<'a, P, S, L, C, N, N2>,
+    ) -> World<'a, P, S, L, C, N, N2> {
+        self.prev_counter = self.counter;
+        self.counter = 0;
+        self.get_world(world)
+    }
+
+    fn turn_on<
+        'a,
+        P: Instance,
+        const S: usize,
+        const L: usize,
+        const C: usize,
+        const N: usize,
+        const N2: usize,
+    >(
+        &mut self,
+        world: World<'a, P, S, L, C, N, N2>,
+    ) -> World<'a, P, S, L, C, N, N2> {
+        self.counter = self.prev_counter;
+        self.get_world(world)
+    }
+
+    pub fn switch_power<
+        'a,
+        P: Instance,
+        const S: usize,
+        const L: usize,
+        const C: usize,
+        const N: usize,
+        const N2: usize,
+    >(
+        &mut self,
+        world: World<'a, P, S, L, C, N, N2>,
+    ) -> World<'a, P, S, L, C, N, N2> {
+        match self.is_on {
+            true => {
+                self.is_on = false;
+                self.turn_off(world)
+            }
+            false => {
+                self.is_on = true;
+                self.turn_on(world)
+            }
+        }
+    }
+
+    fn get_world<
+        'a,
+        P: Instance,
+        const S: usize,
+        const L: usize,
+        const C: usize,
+        const N: usize,
+        const N2: usize,
+    >(
+        &mut self,
+        world: World<'a, P, S, L, C, N, N2>,
+    ) -> World<'a, P, S, L, C, N, N2> {
+        // Destroy old world and return peripherial resources
+        let ws: Ws2812<'a, P, S, N> = world.into();
+        match self.counter {
+            0 => {
+                todo!("Power ON/OFF")
+            }
+            1 => World::fire_from(ws),
+            2 => World::northen_light_from(ws),
+            3 => World::matrix_from(ws),
+            4 => World::voronoi_from(ws),
+            _ => {
+                defmt::panic!("World counter out of bounds")
+            }
+        }
+    }
+}

@@ -12,7 +12,7 @@ use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Ticker};
 use pleiades::apds9960::{Apds9960, Command};
-use pleiades::world::{Flush, OnDirection, Tick, World};
+use pleiades::world::{Flush, OnDirection, Switch, Tick, World};
 use pleiades::ws2812::Ws2812;
 use {defmt_rtt as _, panic_probe as _};
 
@@ -59,14 +59,18 @@ async fn main(spawner: Spawner) {
     // > = World::northen_light_from(ws2812);
     // > = World::voronoi_from(ws2812);
 
+    let mut switch = Switch::new();
+
     loop {
         if let Ok(command) = CHANNEL.try_recv() {
             defmt::info!("Command!: {}", command);
             match command {
                 Command::Level(direction) => world.on_direction(direction),
+                Command::Swing => world = switch.switch_world(world),
                 _ => {}
             }
         }
+
         match world {
             World::Fire(ref mut fire) => {
                 fire.tick().await;
