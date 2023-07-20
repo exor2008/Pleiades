@@ -67,11 +67,15 @@ async fn main(spawner: Spawner) {
             match command {
                 Command::Level(direction) => world.on_direction(direction),
                 Command::Swing => world = switch.switch_world(world),
-                _ => {}
+                Command::SwitchPower => world = switch.switch_power(world),
             }
         }
 
         match world {
+            World::Empty(ref mut empty) => {
+                empty.tick().await;
+                empty.flush().await;
+            }
             World::Fire(ref mut fire) => {
                 fire.tick().await;
                 fire.flush().await;

@@ -2,6 +2,7 @@ use crate::{apds9960::Direction, ws2812::Ws2812};
 use core::usize;
 use embassy_rp::pio::Instance;
 
+pub mod empty;
 pub mod fire;
 pub mod matrix;
 pub mod norhten_light;
@@ -30,6 +31,7 @@ pub enum World<
 > where
     P: Instance,
 {
+    Empty(empty::Empty<'a, P, S, L, C, N>),
     Fire(fire::Fire<'a, P, S, L, C, N>),
     NorthenLight(norhten_light::NorthenLight<'a, P, S, L, C, N>),
     Matrix(matrix::Matrix<'a, P, S, L, C, N, N2>), // StarryNight(starry_night::StarryNight<'a, P, S, L, C, N>),
@@ -41,6 +43,11 @@ impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize, cons
 where
     P: Instance,
 {
+    pub fn empty_from(ws: Ws2812<'a, P, S, N>) -> Self {
+        let empty = empty::Empty::from(ws);
+        World::Empty(empty)
+    }
+
     pub fn fire_from(ws: Ws2812<'a, P, S, N>) -> Self {
         let fire = fire::Fire::from(ws);
         World::Fire(fire)
@@ -74,6 +81,7 @@ where
 {
     fn into(self) -> Ws2812<'a, P, S, N> {
         match self {
+            Self::Empty(empty) => empty.into(),
             Self::Fire(fire) => fire.into(),
             Self::NorthenLight(nl) => nl.into(),
             Self::Matrix(m) => m.into(),
@@ -90,6 +98,7 @@ where
 {
     fn on_direction(&mut self, direction: Direction) {
         match self {
+            Self::Empty(empty) => empty.on_direction(direction),
             Self::Fire(fire) => fire.on_direction(direction),
             Self::NorthenLight(nl) => nl.on_direction(direction),
             Self::Matrix(m) => m.on_direction(direction),
@@ -204,9 +213,7 @@ impl Switch {
         // Destroy old world and return peripherial resources
         let ws: Ws2812<'a, P, S, N> = world.into();
         match self.counter {
-            0 => {
-                todo!("Power ON/OFF")
-            }
+            0 => World::empty_from(ws),
             1 => World::fire_from(ws),
             2 => World::northen_light_from(ws),
             3 => World::matrix_from(ws),
