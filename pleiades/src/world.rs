@@ -6,6 +6,7 @@ pub mod empty;
 pub mod fire;
 pub mod matrix;
 pub mod norhten_light;
+pub mod utils;
 pub mod voronoi;
 // pub mod starry_night;
 pub trait Tick {

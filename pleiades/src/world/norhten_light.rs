@@ -3,6 +3,7 @@ use crate::apds9960::Direction;
 use crate::color::{Color, ColorGradient};
 use crate::led_matrix;
 use crate::perlin;
+use crate::world::utils::CooldownValue;
 use crate::world::{Flush, Tick};
 use crate::ws2812::Ws2812;
 use core::iter::Sum;
@@ -13,7 +14,10 @@ use perlin::rand_float;
 use pleiades_macro_derive::{Flush, From, Into};
 use smart_leds::RGB8;
 
-const PATTERNS: usize = 6;
+const PATTERNS_COOLDOWNL: u8 = 1;
+const PATTERNS_MAX: usize = 9;
+const PATTERNS_MIN: usize = 2;
+const PATTERNS_INIT: usize = 6;
 
 #[derive(Flush, Into, From)]
 pub struct NorthenLight<
@@ -27,7 +31,8 @@ pub struct NorthenLight<
     led: led_matrix::LedMatrix<'a, P, S, L, C, N>,
     colormap: ColorGradient<C>,
     ticker: Ticker,
-    patterns: Vec<Pattern<L, C, N>, PATTERNS>,
+    patterns: Vec<Pattern<L, C, N>, PATTERNS_MAX>,
+    curr_n_patterns: CooldownValue<PATTERNS_COOLDOWNL, PATTERNS_MIN, PATTERNS_MAX>,
     t: usize,
     last_spawn: isize,
 }
@@ -40,22 +45,16 @@ where
     pub fn new(ws: Ws2812<'a, P, S, N>) -> Self {
         let led = led_matrix::LedMatrix::new(ws);
         let ticker = Ticker::every(Duration::from_millis(20));
-        let mut colormap = ColorGradient::new();
-
-        colormap.add_color(Color::new(0.0, RGB8::new(0, 0, 0)));
-        colormap.add_color(Color::new(0.1, RGB8::new(0, 0, 0)));
-        colormap.add_color(Color::new(0.25, RGB8::new(10, 30, 60)));
-        colormap.add_color(Color::new(0.5, RGB8::new(2, 237, 80)));
-        colormap.add_color(Color::new(0.75, RGB8::new(108, 134, 206)));
-        colormap.add_color(Color::new(1.01, RGB8::new(70, 30, 100)));
-
-        let patterns: Vec<Pattern<L, C, N>, PATTERNS> = Vec::new();
+        let colormap = NorthenLight::<'a, P, S, L, C, N>::get_colormap();
+        let patterns: Vec<Pattern<L, C, N>, PATTERNS_MAX> = Vec::new();
+        let curr_n_patterns = CooldownValue::new(PATTERNS_INIT);
 
         Self {
             led,
             colormap,
             ticker,
             patterns,
+            curr_n_patterns,
             t: 0,
             last_spawn: -1000,
         }
@@ -94,7 +93,10 @@ where
 {
     fn spawn_patterns(&mut self) {
         let time_till_last_spawn = self.t as isize - self.last_spawn;
-        if !self.patterns.is_full() && time_till_last_spawn > 50 {
+        let is_limit = self.patterns.len() >= *self.curr_n_patterns.value();
+        let spawn_cooldown = 100 - *self.curr_n_patterns.value() as isize * 9;
+
+        if !self.patterns.is_full() && !is_limit && time_till_last_spawn > spawn_cooldown {
             let cutoff = rand_float(0.52, 0.57);
             let lifetime = 250 + rand_float(-75.0, 75.0) as usize;
             let pattern: Pattern<L, C, N> = Pattern::new(self.t, cutoff, lifetime);
@@ -111,6 +113,19 @@ where
         self.patterns
             .retain(|pattern| pattern.t <= pattern.lifetime);
     }
+
+    fn get_colormap() -> ColorGradient<C> {
+        let mut colormap = ColorGradient::new();
+
+        colormap.add_color(Color::new(0.0, RGB8::new(0, 0, 0)));
+        colormap.add_color(Color::new(0.1, RGB8::new(0, 0, 0)));
+        colormap.add_color(Color::new(0.25, RGB8::new(10, 30, 60)));
+        colormap.add_color(Color::new(0.5, RGB8::new(2, 237, 80)));
+        colormap.add_color(Color::new(0.75, RGB8::new(108, 134, 206)));
+        colormap.add_color(Color::new(1.01, RGB8::new(70, 30, 100)));
+
+        colormap
+    }
 }
 
 impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize> OnDirection
@@ -121,10 +136,10 @@ where
     fn on_direction(&mut self, direction: Direction) {
         match direction {
             Direction::Up => {
-                todo!("Implemnt UP for NL");
+                self.curr_n_patterns.up();
             }
             Direction::Down => {
-                todo!("Implemnt DOWN for NL");
+                self.curr_n_patterns.down();
             }
         }
     }

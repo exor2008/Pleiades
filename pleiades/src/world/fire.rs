@@ -3,9 +3,10 @@ use crate::apds9960::Direction;
 use crate::color::ColorGradient;
 use crate::led_matrix;
 use crate::perlin;
+use crate::world::utils::CooldownValue;
 use crate::world::{Flush, Tick};
 use crate::ws2812::Ws2812;
-use core::cmp::{max, min};
+use core::cmp::max;
 use embassy_rp::clocks::RoscRng;
 use embassy_rp::pio::Instance;
 use embassy_time::{Duration, Ticker};
@@ -14,12 +15,17 @@ use pleiades_macro_derive::{Flush, From, Into};
 use rand::Rng;
 use smart_leds::hsv::Hsv;
 
+const HEIGHT_COOLDOWN: u8 = 1;
+const HEIGHT_MIN: usize = 3;
+const HEIGHT_MAX: usize = 15;
+const HEIGHT_INIT: usize = 3;
+
 #[derive(Flush, Into, From)]
 pub struct Fire<'a, P: Instance, const S: usize, const L: usize, const C: usize, const N: usize> {
     led: led_matrix::LedMatrix<'a, P, S, L, C, N>,
     noise: perlin::PerlinNoise,
     colormap: ColorGradient<4>,
-    height: Height<L, 1, 3, 15>,
+    height: CooldownValue<HEIGHT_COOLDOWN, HEIGHT_MIN, HEIGHT_MAX>,
     sparks: Vec<Spark<C>, C>,
     ticker: Ticker,
     t: usize,
@@ -33,7 +39,7 @@ where
         let led = led_matrix::LedMatrix::new(ws);
         let noise = perlin::PerlinNoise::new();
         let colormap = Fire::<P, S, L, C, N>::get_colormap();
-        let height = Height::new(6);
+        let height = CooldownValue::new(HEIGHT_INIT);
         let ticker = Ticker::every(Duration::from_millis(50));
         let sparks: Vec<Spark<C>, C> = Vec::new();
 
@@ -156,11 +162,11 @@ where
         match direction {
             Direction::Up => {
                 self.colormap.change_value(20);
-                self.height.up();
+                self.height.down();
             }
             Direction::Down => {
                 self.colormap.change_value(-20);
-                self.height.down();
+                self.height.up();
             }
         }
     }
@@ -179,48 +185,5 @@ impl<const C: usize> Spark<C> {
 
         self.y -= 1;
         self.x += dir;
-    }
-}
-
-struct Height<const L: usize, const COOLDOWNL: u8, const MIN: usize, const MAX: usize> {
-    value: usize,
-    cooldown: u8,
-}
-
-impl<const L: usize, const COOLDOWNL: u8, const MIN: usize, const MAX: usize>
-    Height<L, COOLDOWNL, MIN, MAX>
-{
-    fn new(value: usize) -> Self {
-        Height { value, cooldown: 0 }
-    }
-
-    fn down(&mut self) {
-        match self.cooldown == 0 {
-            true => {
-                self.cooldown = COOLDOWNL;
-                self.value += 1;
-                self.value = min(self.value, MAX);
-            }
-            false => {
-                self.cooldown -= 1;
-            }
-        }
-    }
-
-    fn up(&mut self) {
-        match self.cooldown == 0 {
-            true => {
-                self.cooldown = COOLDOWNL;
-                self.value -= 1;
-                self.value = max(self.value, MIN);
-            }
-            false => {
-                self.cooldown -= 1;
-            }
-        }
-    }
-
-    fn value(&self) -> &usize {
-        &self.value
     }
 }
