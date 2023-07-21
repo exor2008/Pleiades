@@ -3,6 +3,7 @@ use crate::apds9960::Direction;
 use crate::color::{Color, ColorGradient};
 use crate::led_matrix;
 use crate::perlin;
+use crate::world::utils::CooldownValue;
 use crate::world::{Flush, Tick};
 use crate::ws2812::Ws2812;
 use core::marker::PhantomData;
@@ -11,6 +12,10 @@ use embassy_time::{Duration, Ticker};
 use heapless::Vec;
 use pleiades_macro_derive::{Flush, From, Into};
 use smart_leds::RGB8;
+
+const SPARKS_COOLDOWN: u8 = 3;
+const SPARKS_MIN_CHANCE: usize = 2;
+const SPARKS_MAX_CHANCE: usize = 5;
 
 #[derive(Flush, Into, From)]
 pub struct Matrix<
@@ -27,6 +32,7 @@ pub struct Matrix<
     letters: Vec<Letters, N2>,
     ticker: Ticker,
     rnd_col: Vec<usize, C>,
+    spawn_chance: CooldownValue<SPARKS_COOLDOWN, SPARKS_MIN_CHANCE, SPARKS_MAX_CHANCE>,
     t: usize,
 }
 
@@ -39,6 +45,7 @@ where
         let led = led_matrix::LedMatrix::new(ws);
         let ticker = Ticker::every(Duration::from_millis(30));
         let mut colormap = ColorGradient::new();
+        let spawn_chance = CooldownValue::new(2);
         let letters: Vec<Letters, N2> = Vec::new();
         let rnd_col: Vec<usize, C> = Vec::new();
 
@@ -51,6 +58,7 @@ where
             colormap,
             letters,
             ticker,
+            spawn_chance,
             rnd_col,
             t: 0,
         }
@@ -92,8 +100,9 @@ where
 {
     fn spawn_letters(&mut self) {
         let chance = perlin::rand_float(0.0, 1.0);
+        let prob = 1.0 - *self.spawn_chance.value() as f32 / 10.0;
 
-        if !self.letters.is_full() && chance >= 0.7 {
+        if !self.letters.is_full() && chance >= prob {
             let x: usize = self.next_rnd_column();
 
             let cool_rate = perlin::rand_float(0.005, 0.015);
@@ -160,8 +169,8 @@ where
 {
     fn on_direction(&mut self, direction: Direction) {
         match direction {
-            Direction::Up => todo!("Implemnt UP for Matrix"),
-            Direction::Down => todo!("Implemnt DOWN for Matrix"),
+            Direction::Up => self.spawn_chance.up(),
+            Direction::Down => self.spawn_chance.down(),
         }
     }
 }
