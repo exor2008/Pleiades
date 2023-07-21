@@ -161,7 +161,7 @@ impl StateMashine {
         match self.state {
             State::Check => match dist {
                 // dist > 0
-                dist if dist > 1 => match self.succ_checks > 3 {
+                dist if dist > 2 => match self.succ_checks > 3 {
                     true => {
                         self.succ_checks += 1;
                         self.recorded = self.succ_checks;

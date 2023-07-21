@@ -3,6 +3,7 @@ use crate::apds9960::Direction;
 use crate::color::{Color, ColorGradient};
 use crate::led_matrix;
 use crate::perlin;
+use crate::world::utils::CooldownValue;
 use crate::world::{Flush, Tick};
 use crate::ws2812::Ws2812;
 use core::f32::consts::PI;
@@ -13,7 +14,10 @@ use micromath::F32Ext;
 use pleiades_macro_derive::{Flush, From, Into};
 use smart_leds::RGB8;
 
-const POINTS: usize = 5;
+const POINTS_COOLDOWN: u8 = 0;
+const POINTS_INIT: usize = 5;
+const POINTS_MIN: usize = 2;
+const POINTS_MAX: usize = 20;
 const TIMES_OF_DAY: usize = 3;
 
 #[derive(Flush, Into, From)]
@@ -35,7 +39,7 @@ where
 {
     pub fn new(ws: Ws2812<'a, P, S, N>) -> Self {
         let led = led_matrix::LedMatrix::new(ws);
-        let ticker = Ticker::every(Duration::from_millis(30));
+        let ticker = Ticker::every(Duration::from_millis(20));
         let time = PI / 2.0;
         let mut model: Model<L, C> = Model::new();
         let buffer_new = model.step(time);
@@ -95,10 +99,10 @@ where
     fn on_direction(&mut self, direction: Direction) {
         match direction {
             Direction::Up => {
-                todo!("Implemnt UP for Voronoi")
+                self.model.desired_points_count.up();
             }
             Direction::Down => {
-                todo!("Implemnt DOWN for Voronoi")
+                self.model.desired_points_count.down();
             }
         }
     }
@@ -113,10 +117,10 @@ struct Point<const L: usize, const C: usize> {
 }
 
 impl<const L: usize, const C: usize> Point<L, C> {
-    fn new(x: isize, y: isize, colormap: ColorGradient<TIMES_OF_DAY>) -> Self {
+    fn new(colormap: ColorGradient<TIMES_OF_DAY>) -> Self {
         Point {
-            x,
-            y,
+            x: perlin::rand_uint(0, C as u32) as isize,
+            y: perlin::rand_uint(0, L as u32) as isize,
             x_shift: perlin::rand_int(-1, 2) as isize,
             y_shift: perlin::rand_int(-1, 2) as isize,
             colormap,
@@ -141,13 +145,25 @@ impl<const L: usize, const C: usize> Point<L, C> {
     }
 }
 
+impl<const L: usize, const C: usize> From<&ColorGradient<TIMES_OF_DAY>> for Point<L, C> {
+    fn from(value: &ColorGradient<TIMES_OF_DAY>) -> Self {
+        let mut colormap = ColorGradient::new();
+        for color in value.colors() {
+            colormap.add_color(*color);
+        }
+        Point::new(colormap)
+    }
+}
+
 struct Model<const L: usize, const C: usize> {
-    points: Vec<Point<L, C>, POINTS>,
+    points: Vec<Point<L, C>, POINTS_MAX>,
+    colormaps: [ColorGradient<TIMES_OF_DAY>; POINTS_INIT],
+    desired_points_count: CooldownValue<POINTS_COOLDOWN, POINTS_MIN, POINTS_MAX>,
 }
 
 impl<const L: usize, const C: usize> Model<L, C> {
     fn new() -> Self {
-        let mut points: Vec<Point<L, C>, POINTS> = Vec::new();
+        let points: Vec<Point<L, C>, POINTS_MAX> = Vec::new();
 
         let mut cm1 = ColorGradient::new();
 
@@ -175,26 +191,38 @@ impl<const L: usize, const C: usize> Model<L, C> {
         cm5.add_color(Color::new(0.5, RGB8::new(254, 218, 121)));
         cm5.add_color(Color::new(1.01, RGB8::new(255, 193, 167)));
 
-        let mut colormaps: Vec<ColorGradient<TIMES_OF_DAY>, POINTS> = Vec::new();
-        unsafe {
-            colormaps.push_unchecked(cm1);
-            colormaps.push_unchecked(cm2);
-            colormaps.push_unchecked(cm3);
-            colormaps.push_unchecked(cm4);
-            colormaps.push_unchecked(cm5);
-        }
+        let colormaps: [ColorGradient<TIMES_OF_DAY>; POINTS_INIT] = [cm1, cm2, cm3, cm4, cm5];
 
-        for cm in colormaps.into_iter() {
-            let x = perlin::rand_uint(0, C as u32) as isize;
-            let y = perlin::rand_uint(0, L as u32) as isize;
-            unsafe {
-                points.push_unchecked(Point::new(x, y, cm));
+        let desired_points_count = CooldownValue::new(POINTS_INIT);
+
+        Model {
+            points,
+            colormaps,
+            desired_points_count,
+        }
+    }
+
+    fn spawn_and_kill_points(&mut self) {
+        while self.points.len() != *self.desired_points_count.value() {
+            match self.points.len() > *self.desired_points_count.value() {
+                true => {
+                    self.points.pop();
+                }
+                false => {
+                    let index = self.points.len() % self.colormaps.len();
+                    let colormap = &self.colormaps[index];
+                    let point: Point<L, C> = Point::<L, C>::from(colormap);
+                    if let Err(_) = self.points.push(point) {
+                        defmt::error!("Overflow while trying to spawn a new point.")
+                    }
+                }
             }
         }
-        Model { points }
     }
 
     fn step(&mut self, time: f32) -> [[RGB8; L]; C] {
+        self.spawn_and_kill_points();
+
         let mut index_matrix = [[0usize; L]; C];
         let mut buffer = [[RGB8::default(); L]; C];
         let sin = (time.sin() + 1.0) / 2.0; // [0..1]
@@ -202,7 +230,7 @@ impl<const L: usize, const C: usize> Model<L, C> {
         for x in 0..C {
             for y in 0..L {
                 // Vector of distances from every LED to every Point
-                let dist: Vec<isize, POINTS> = self
+                let dist: Vec<isize, POINTS_MAX> = self
                     .points
                     .iter()
                     .map(|p| {
@@ -216,7 +244,7 @@ impl<const L: usize, const C: usize> Model<L, C> {
                 if let Some(index) = dist
                     .iter()
                     .enumerate()
-                    .max_by(|(_, a), (_, b)| a.cmp(b))
+                    .min_by(|(_, a), (_, b)| a.cmp(b))
                     .map(|(index, _)| index)
                 {
                     index_matrix[x][y] = index;

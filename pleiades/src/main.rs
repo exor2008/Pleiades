@@ -63,7 +63,7 @@ async fn main(spawner: Spawner) {
 
     loop {
         if let Ok(command) = CHANNEL.try_recv() {
-            defmt::info!("Command!: {}", command);
+            // defmt::info!("Command!: {}", command);
             match command {
                 Command::Level(direction) => world.on_direction(direction),
                 Command::Swing => world = switch.switch_world(world),
@@ -94,11 +94,6 @@ async fn main(spawner: Spawner) {
             }
         }
     }
-
-    // let ws2812: Ws2812<PIO0, STATE_MACHINE, NUM_LEDS> = world.into();
-    // let mut ws2812: Ws2812<PIO0, STATE_MACHINE, NUM_LEDS> = world.into();
-    // ws2812.write(&[RGB::new(0, 0, 0); 256]).await;
-    // }
 }
 
 #[embassy_executor::task]

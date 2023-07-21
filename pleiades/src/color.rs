@@ -6,7 +6,7 @@ use heapless::Vec;
 use smart_leds::hsv::{hsv2rgb, Hsv};
 use smart_leds::RGB8;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Color {
     pos: f32,
     rgb: RGB8,
@@ -165,6 +165,10 @@ impl<const COLORS: usize> ColorGradient<COLORS> {
                 new_hsv.val = max(new_hsv.val, 1);
                 color.rgb = hsv2rgb(new_hsv)
             })
+    }
+
+    pub fn colors(&self) -> &[Color] {
+        self.colors.as_slice()
     }
 }
 

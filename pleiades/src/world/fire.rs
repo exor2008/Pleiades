@@ -99,7 +99,7 @@ where
     P: Instance,
 {
     fn spawn_spark(&mut self, x: usize, height: usize) {
-        if height < (C - 1) && perlin::spawn_chance(1, 300) {
+        if height < (C - 1) && perlin::spawn_chance(1, 30) {
             let spark = Spark {
                 x: x as isize,
                 y: (C - 1 - height) as isize,
@@ -120,7 +120,7 @@ where
         let temp = rng.gen_range(0.8f32..=1.0);
 
         for spark in self.sparks.iter() {
-            let color = self.colormap.get_noised(temp, -0.2, 0.2);
+            let color = self.colormap.get_noised(temp, 0.0, 0.2);
             self.led.write(spark.x as usize, spark.y as usize, color);
         }
     }
