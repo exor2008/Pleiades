@@ -113,17 +113,15 @@ struct Point<const L: usize, const C: usize> {
     y: isize,
     x_shift: isize,
     y_shift: isize,
-    colormap: ColorGradient<TIMES_OF_DAY>,
 }
 
 impl<const L: usize, const C: usize> Point<L, C> {
-    fn new(colormap: ColorGradient<TIMES_OF_DAY>) -> Self {
+    fn new() -> Self {
         Point {
             x: perlin::rand_uint(0, C as u32) as isize,
             y: perlin::rand_uint(0, L as u32) as isize,
             x_shift: perlin::rand_int(-1, 2) as isize,
             y_shift: perlin::rand_int(-1, 2) as isize,
-            colormap,
         }
     }
 
@@ -142,16 +140,6 @@ impl<const L: usize, const C: usize> Point<L, C> {
     fn change_dir(&mut self) {
         self.x_shift = perlin::rand_int(-1, 2) as isize;
         self.y_shift = perlin::rand_int(-1, 2) as isize;
-    }
-}
-
-impl<const L: usize, const C: usize> From<&ColorGradient<TIMES_OF_DAY>> for Point<L, C> {
-    fn from(value: &ColorGradient<TIMES_OF_DAY>) -> Self {
-        let mut colormap = ColorGradient::new();
-        for color in value.colors() {
-            colormap.add_color(*color);
-        }
-        Point::new(colormap)
     }
 }
 
@@ -209,9 +197,7 @@ impl<const L: usize, const C: usize> Model<L, C> {
                     self.points.pop();
                 }
                 false => {
-                    let index = self.points.len() % self.colormaps.len();
-                    let colormap = &self.colormaps[index];
-                    let point: Point<L, C> = Point::<L, C>::from(colormap);
+                    let point: Point<L, C> = Point::<L, C>::new();
                     if let Err(_) = self.points.push(point) {
                         defmt::error!("Overflow while trying to spawn a new point.")
                     }
@@ -255,10 +241,11 @@ impl<const L: usize, const C: usize> Model<L, C> {
         for x in 0..C {
             for y in 0..L {
                 let idx1 = index_matrix[x][y];
-                let point = &self.points[idx1];
+                let index = idx1 % self.colormaps.len();
+                let colormap = &self.colormaps[index];
 
                 if x == 0 || y == 0 || x == C - 1 || y == L - 1 {
-                    buffer[x][y] = point.colormap.get(sin);
+                    buffer[x][y] = colormap.get(sin);
                 } else {
                     for x_shift in -1..=1 {
                         for y_shift in -1..=1 {
@@ -267,7 +254,7 @@ impl<const L: usize, const C: usize> Model<L, C> {
                                 let y_idx = (y as isize + y_shift) as usize;
                                 let idx2 = index_matrix[x_idx][y_idx];
                                 if idx1 != idx2 {
-                                    buffer[x][y] = point.colormap.get(sin);
+                                    buffer[x][y] = colormap.get(sin);
                                     break;
                                 }
                             }
