@@ -18,6 +18,8 @@ jobs:
     - uses: actions/checkout@v3
     - name: Install elf to uf2 converter
       run: cargo install elf2uf2-rs
+    - name: Install libusb
+      run: sudo apt install -y pkg-config libusb-1.0-0-dev libftdi1-dev
     - name: Install deps for probe-run
       run: sudo apt install -y libusb-1.0-0-dev libudev-dev
     - name: Install probe-run

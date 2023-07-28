@@ -97,7 +97,7 @@ where
         let spawn_cooldown = 100 - *self.curr_n_patterns.value() as isize * 9;
 
         if !self.patterns.is_full() && !is_limit && time_till_last_spawn > spawn_cooldown {
-            let cutoff = rand_float(0.52, 0.57);
+            let cutoff = rand_float(0.51, 0.56);
             let lifetime = 250 + rand_float(-75.0, 75.0) as usize;
             let pattern: Pattern<L, C, N> = Pattern::new(self.t, cutoff, lifetime);
             self.patterns.push(pattern).unwrap();

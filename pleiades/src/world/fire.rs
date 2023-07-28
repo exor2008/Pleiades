@@ -99,7 +99,7 @@ where
     P: Instance,
 {
     fn spawn_spark(&mut self, x: usize, height: usize) {
-        if height < (C - 1) && perlin::rand_float(0.0, 1.0) > 0.8 {
+        if height < (C - 1) && perlin::rand_float(0.0, 1.0) > 0.855 {
             let spark = Spark {
                 x: x as isize,
                 y: (C - 1 - height) as isize,
