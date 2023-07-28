@@ -16,10 +16,14 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: pwd1
+      run: pwd .
     - name: Change current dir
       run: cd pleiades
     - name: Debug
       run: ls .
+    - name: pwd2
+      run: pwd .
     - name: Install libusb
       run: sudo apt install -y pkg-config libusb-1.0-0-dev libftdi1-dev
     - name: Install deps for probe-run
