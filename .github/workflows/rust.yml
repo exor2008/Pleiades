@@ -1,0 +1,33 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install elf to uf2 converter
+      run: cargo install elf2uf2-rs
+    - name: Install deps for probe-run
+      run: sudo apt install -y libusb-1.0-0-dev libudev-dev
+    - name: Install probe-run
+      run: cargo install probe-run
+    - name: Build
+      run: cargo build --verbose --release
+    - name: Create uf2
+      run: elf2uf2-rs ./target/thumbv6m-none-eabi/release/pleiades ./pleiades.uf2
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: pleiades v 0.0.1
+        path: pleiades.uf2
