@@ -16,6 +16,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Change current dir
+      run: cd pleiades
     - name: Install libusb
       run: sudo apt install -y pkg-config libusb-1.0-0-dev libftdi1-dev
     - name: Install deps for probe-run
@@ -25,9 +27,9 @@ jobs:
     - name: Install probe-run
       run: cargo install probe-run
     - name: Build
-      run: cargo build --verbose --release
+      run: cargo build --verbose --release --out-dir ./build
     - name: Create uf2
-      run: elf2uf2-rs ./target/thumbv6m-none-eabi/release/pleiades ./pleiades.uf2
+      run: elf2uf2-rs ./build/pleiades ./pleiades.uf2
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
