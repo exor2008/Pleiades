@@ -9,5 +9,6 @@ pub mod apds9960;
 pub mod color;
 pub mod led_matrix;
 pub mod perlin;
+pub mod wifi;
 pub mod world;
 pub mod ws2812;
