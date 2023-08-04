@@ -7,6 +7,7 @@
 
 pub mod apds9960;
 pub mod color;
+pub mod http;
 pub mod led_matrix;
 pub mod perlin;
 pub mod wifi;

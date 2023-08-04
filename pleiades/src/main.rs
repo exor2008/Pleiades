@@ -2,6 +2,7 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
+use cyw43::Control;
 use cyw43_pio::PioSpi;
 use defmt::*;
 use embassy_executor::Spawner;
@@ -15,6 +16,7 @@ use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Ticker};
 use pleiades::apds9960::{Apds9960, Command};
+use pleiades::http::run_http;
 use pleiades::wifi::{Create, Join, Wifi};
 use pleiades::world::{Flush, OnDirection, Switch, Tick, World};
 use pleiades::ws2812::Ws2812;
@@ -57,10 +59,10 @@ async fn main(spawner: Spawner) {
     // let stack: &'static mut Stack<NetDriver<'static>>;
     // let runner: Runner<'static, Output<'_, PIN_23>, PioSpi<'_, PIN_25, PIO1, 0, DMA_CH1>>;
 
-    match true {
+    match false {
         true => {
             let (net_device, control, runner) =
-                Wifi::<Create>::pre_init(common, sm0, irq0, cs, pwr, p.PIN_24, p.PIN_29, p.DMA_CH1)
+                Wifi::<Create>::runner(common, sm0, irq0, cs, pwr, p.PIN_24, p.PIN_29, p.DMA_CH1)
                     .await;
 
             unwrap!(spawner.spawn(wifi_task(runner)));
@@ -69,10 +71,12 @@ async fn main(spawner: Spawner) {
 
             unwrap!(spawner.spawn(net_task(stack)));
             wifi.create(WIFI_SSID, WIFI_PASSWORD).await;
+
+            unwrap!(spawner.spawn(http_task(wifi.into(), stack)));
         }
         false => {
             let (net_device, control, runner) =
-                Wifi::<Join>::pre_init(common, sm0, irq0, cs, pwr, p.PIN_24, p.PIN_29, p.DMA_CH1)
+                Wifi::<Join>::runner(common, sm0, irq0, cs, pwr, p.PIN_24, p.PIN_29, p.DMA_CH1)
                     .await;
 
             unwrap!(spawner.spawn(wifi_task(runner)));
@@ -81,6 +85,8 @@ async fn main(spawner: Spawner) {
 
             unwrap!(spawner.spawn(net_task(stack)));
             wifi.join().await;
+
+            unwrap!(spawner.spawn(http_task(wifi.into(), stack)));
         }
     }
 
@@ -181,4 +187,13 @@ async fn wifi_task(
 #[embassy_executor::task]
 async fn net_task(stack: &'static Stack<cyw43::NetDriver<'static>>) -> ! {
     stack.run().await
+}
+
+#[embassy_executor::task]
+async fn http_task(
+    control: Control<'static>,
+    stack: &'static Stack<cyw43::NetDriver<'static>>,
+) -> ! {
+    run_http(control, stack).await;
+    defmt::unreachable!();
 }

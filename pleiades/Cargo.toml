@@ -39,10 +39,11 @@ embedded-hal-1 = { package = "embedded-hal", version = "=1.0.0-alpha.10" }
 embedded-hal-async = "0.2.0-alpha.1"
 atomic-polyfill = "0.1.5"
 
+numtoa = "0.2.4"
+arrayvec = { version = "0.5", default-features = false }
 defmt = "0.3"
 defmt-rtt = "0.3"
 panic-probe = { version = "0.3", features = ["print-defmt"] }
-
 cortex-m = { version = "0.7.6", features = ["critical-section-single-core"] }
 cortex-m-rt = "0.7.0"
 futures = { version = "0.3.17", default-features = false, features = [

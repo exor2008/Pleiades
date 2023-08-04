@@ -21,7 +21,7 @@ impl<'a, WifiType> Wifi<'a, WifiType>
 where
     WifiType: IpConfig,
 {
-    pub async fn pre_init<CS, PIO, DMA, DIO, CLK, PWR, const SM: usize>(
+    pub async fn runner<CS, PIO, DMA, DIO, CLK, PWR, const SM: usize>(
         mut common: Common<'a, PIO>,
         sm: StateMachine<'a, PIO, SM>,
         irq: Irq<'a, PIO, 0>,
@@ -58,7 +58,7 @@ where
     pub async fn init(
         net_device: NetDriver<'static>,
         mut control: Control<'a>,
-    ) -> (Wifi<'a, WifiType>, &'static mut Stack<NetDriver<'static>>) {
+    ) -> (Wifi<'a, WifiType>, &'static Stack<NetDriver<'static>>) {
         let clm = include_bytes!("../cyw43-firmware/43439A0_clm.bin");
 
         control.init(clm).await;
@@ -69,7 +69,7 @@ where
         let seed: u64 = 0x0123_4567_89ab_cdef; // chosen by fair dice roll. guarenteed to be random.
 
         // Init network stack
-        let stack = make_static!(Stack::new(
+        let stack = &*make_static!(Stack::new(
             net_device,
             config,
             make_static!(StackResources::<2>::new()),
@@ -86,6 +86,14 @@ where
     }
 }
 
+impl<'a, WifiType> Into<Control<'a>> for Wifi<'a, WifiType>
+where
+    WifiType: IpConfig,
+{
+    fn into(self) -> Control<'a> {
+        self.control
+    }
+}
 pub struct Create;
 
 pub struct Join;
@@ -98,10 +106,12 @@ impl<'a> Wifi<'a, Create> {
 
 impl<'a> Wifi<'a, Join> {
     pub async fn join(&mut self) {
-        self.control
-            .join_wpa2("pleiades", "pleiades")
-            .await
-            .unwrap();
+        loop {
+            match self.control.join_wpa2("Bella1611", "Miroslava0831").await {
+                Ok(_) => break,
+                Err(err) => defmt::warn!("join failed with status={}", err.status),
+            }
+        }
     }
 }
 
@@ -112,9 +122,9 @@ pub trait IpConfig {
 impl IpConfig for Create {
     fn config() -> Config {
         embassy_net::Config::ipv4_static(embassy_net::StaticConfigV4 {
-            address: Ipv4Cidr::new(Ipv4Address::new(192, 168, 69, 2), 24),
+            address: Ipv4Cidr::new(Ipv4Address::new(169, 254, 1, 1), 16),
             dns_servers: Vec::new(),
-            gateway: Some(Ipv4Address::new(192, 168, 69, 1)),
+            gateway: None,
         })
     }
 }
