@@ -69,7 +69,7 @@ where
         let seed: u64 = 0x0123_4567_89ab_cdef; // chosen by fair dice roll. guarenteed to be random.
 
         // Init network stack
-        let stack = &*make_static!(Stack::new(
+        let stack = make_static!(Stack::new(
             net_device,
             config,
             make_static!(StackResources::<2>::new()),

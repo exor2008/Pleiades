@@ -11,15 +11,22 @@ use embassy_rp::bind_interrupts;
 use embassy_rp::gpio::{Level, Output};
 use embassy_rp::i2c::{self, Async, Config, InterruptHandler};
 use embassy_rp::peripherals::{DMA_CH1, I2C0, PIN_23, PIN_25, PIO0, PIO1};
+use embassy_rp::peripherals::{FLASH, WATCHDOG};
 use embassy_rp::pio::Pio;
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Ticker};
+use heapless::Vec;
 use pleiades::apds9960::{Apds9960, Command};
+use pleiades::firmware::{mark_booted, update_firmware};
 use pleiades::http::run_http;
 use pleiades::wifi::{Create, Join, Wifi};
 use pleiades::world::{Flush, OnDirection, Switch, Tick, World};
 use pleiades::ws2812::Ws2812;
+
+#[cfg(feature = "reset")]
+use panic_reset as _;
+#[cfg(feature = "panic-probe")]
 use {defmt_rtt as _, panic_probe as _};
 
 const NUM_LEDS_LINE: usize = 16;
@@ -33,7 +40,8 @@ bind_interrupts!(struct Irqs {
     I2C0_IRQ => InterruptHandler<I2C0>;
 });
 
-static CHANNEL: Channel<ThreadModeRawMutex, Command, 1> = Channel::new();
+static CHANNEL_SENSOR: Channel<ThreadModeRawMutex, Command, 1> = Channel::new();
+static CHANNEL_UPDATE: Channel<ThreadModeRawMutex, Vec<u8, 4096>, 1> = Channel::new();
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
@@ -48,16 +56,18 @@ async fn main(spawner: Spawner) {
     let i2c = i2c::I2c::new_async(p.I2C0, scl, sda, Irqs, Config::default());
     let apds: Apds9960<'_, I2C0, Async> = Apds9960::new(i2c);
 
+    unwrap!(spawner.spawn(sensor_task(apds)));
+
     // Wifi
     let pwr = Output::new(p.PIN_23, Level::Low);
-    let cs = Output::new(p.PIN_25, Level::High);
+    let cs: Output<'_, PIN_25> = Output::new(p.PIN_25, Level::High);
 
     let Pio {
         common, sm0, irq0, ..
     } = Pio::new(p.PIO1);
 
-    // let stack: &'static mut Stack<NetDriver<'static>>;
-    // let runner: Runner<'static, Output<'_, PIN_23>, PioSpi<'_, PIN_25, PIO1, 0, DMA_CH1>>;
+    // Firmware
+    mark_booted(&p.FLASH);
 
     match false {
         true => {
@@ -89,9 +99,7 @@ async fn main(spawner: Spawner) {
             unwrap!(spawner.spawn(http_task(wifi.into(), stack)));
         }
     }
-
-    // Run tasks
-    unwrap!(spawner.spawn(sensor_task(apds)));
+    unwrap!(spawner.spawn(firmware_update_task(p.WATCHDOG, p.FLASH)));
 
     // LED
     let Pio {
@@ -110,15 +118,15 @@ async fn main(spawner: Spawner) {
         NUM_LEDS_COLUMN,
         NUM_LEDS,
         { 2 * NUM_LEDS },
-    > = World::fire_from(ws2812);
-    // > = World::matrix_from(ws2812);
+        // > = World::fire_from(ws2812);
+    > = World::matrix_from(ws2812);
     // > = World::northen_light_from(ws2812);
     // > = World::voronoi_from(ws2812);
 
     let mut switch = Switch::new();
 
     loop {
-        if let Ok(command) = CHANNEL.try_recv() {
+        if let Ok(command) = CHANNEL_SENSOR.try_recv() {
             // defmt::info!("Command!: {}", command);
             match command {
                 Command::Level(direction) => world.on_direction(direction),
@@ -165,7 +173,7 @@ async fn sensor_task(mut apds: Apds9960<'static, I2C0, Async>) -> ! {
         // }
         apds.gesture().await;
         if let Some(command) = apds.command() {
-            if let Err(_err) = CHANNEL.try_send(command) {
+            if let Err(_err) = CHANNEL_SENSOR.try_send(command) {
                 defmt::error!("Command channel buffer is full");
             }
         }
@@ -194,6 +202,15 @@ async fn http_task(
     control: Control<'static>,
     stack: &'static Stack<cyw43::NetDriver<'static>>,
 ) -> ! {
-    run_http(control, stack).await;
+    run_http(control, stack, &CHANNEL_UPDATE).await;
+    defmt::unreachable!();
+}
+
+#[embassy_executor::task]
+async fn firmware_update_task(watchdog: WATCHDOG, flash: FLASH) -> ! {
+    // Block task until receiving firmware update start signal
+    CHANNEL_UPDATE.recv().await;
+    defmt::info!("Flash signal received");
+    update_firmware(&CHANNEL_UPDATE, watchdog, flash).await;
     defmt::unreachable!();
 }
