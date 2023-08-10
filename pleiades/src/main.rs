@@ -2,43 +2,106 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
+use cyw43::Control;
+use cyw43_pio::PioSpi;
 use defmt::*;
 use embassy_executor::Spawner;
+use embassy_net::Stack;
 use embassy_rp::bind_interrupts;
+use embassy_rp::gpio::{Level, Output};
 use embassy_rp::i2c::{self, Async, Config, InterruptHandler};
-use embassy_rp::peripherals::{I2C0, PIO0};
+use embassy_rp::peripherals::{DMA_CH1, I2C0, PIN_23, PIN_25, PIO0, PIO1};
+use embassy_rp::peripherals::{FLASH, WATCHDOG};
 use embassy_rp::pio::Pio;
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Ticker};
+use heapless::Vec;
 use pleiades::apds9960::{Apds9960, Command};
+use pleiades::firmware::{mark_booted, update_firmware};
+use pleiades::http::run_http;
+use pleiades::wifi::{Create, Join, Wifi};
 use pleiades::world::{Flush, OnDirection, Switch, Tick, World};
 use pleiades::ws2812::Ws2812;
+
+#[cfg(feature = "reset")]
+use panic_reset as _;
+#[cfg(feature = "panic-probe")]
 use {defmt_rtt as _, panic_probe as _};
 
 const NUM_LEDS_LINE: usize = 16;
 const NUM_LEDS_COLUMN: usize = 16;
 const NUM_LEDS: usize = NUM_LEDS_LINE * NUM_LEDS_COLUMN;
 const STATE_MACHINE: usize = 0;
+static WIFI_SSID: &str = "pleiades";
+static WIFI_PASSWORD: &str = "pleiades";
 
 bind_interrupts!(struct Irqs {
     I2C0_IRQ => InterruptHandler<I2C0>;
 });
 
-static CHANNEL: Channel<ThreadModeRawMutex, Command, 1> = Channel::new();
+static CHANNEL_SENSOR: Channel<ThreadModeRawMutex, Command, 1> = Channel::new();
+static CHANNEL_UPDATE: Channel<ThreadModeRawMutex, Vec<u8, 4096>, 1> = Channel::new();
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     info!("Start");
+
+    // Init periferals
     let p = embassy_rp::init(Default::default());
     let sda = p.PIN_20;
     let scl = p.PIN_21;
 
+    // Sensor
     let i2c = i2c::I2c::new_async(p.I2C0, scl, sda, Irqs, Config::default());
-    let apds = Apds9960::new(i2c);
+    let apds: Apds9960<'_, I2C0, Async> = Apds9960::new(i2c);
 
     unwrap!(spawner.spawn(sensor_task(apds)));
 
+    // Wifi
+    let pwr = Output::new(p.PIN_23, Level::Low);
+    let cs: Output<'_, PIN_25> = Output::new(p.PIN_25, Level::High);
+
+    let Pio {
+        common, sm0, irq0, ..
+    } = Pio::new(p.PIO1);
+
+    // Firmware
+    mark_booted(&p.FLASH);
+
+    match false {
+        true => {
+            let (net_device, control, runner) =
+                Wifi::<Create>::runner(common, sm0, irq0, cs, pwr, p.PIN_24, p.PIN_29, p.DMA_CH1)
+                    .await;
+
+            unwrap!(spawner.spawn(wifi_task(runner)));
+
+            let (mut wifi, stack) = Wifi::init(net_device, control).await;
+
+            unwrap!(spawner.spawn(net_task(stack)));
+            wifi.create(WIFI_SSID, WIFI_PASSWORD).await;
+
+            unwrap!(spawner.spawn(http_task(wifi.into(), stack)));
+        }
+        false => {
+            let (net_device, control, runner) =
+                Wifi::<Join>::runner(common, sm0, irq0, cs, pwr, p.PIN_24, p.PIN_29, p.DMA_CH1)
+                    .await;
+
+            unwrap!(spawner.spawn(wifi_task(runner)));
+
+            let (mut wifi, stack) = Wifi::init(net_device, control).await;
+
+            unwrap!(spawner.spawn(net_task(stack)));
+            wifi.join().await;
+
+            unwrap!(spawner.spawn(http_task(wifi.into(), stack)));
+        }
+    }
+    unwrap!(spawner.spawn(firmware_update_task(p.WATCHDOG, p.FLASH)));
+
+    // LED
     let Pio {
         mut common, sm0, ..
     } = Pio::new(p.PIO0);
@@ -46,6 +109,7 @@ async fn main(spawner: Spawner) {
     let ws2812: Ws2812<PIO0, STATE_MACHINE, NUM_LEDS> =
         Ws2812::new(&mut common, sm0, p.DMA_CH0, p.PIN_22);
 
+    // World
     let mut world: World<
         '_,
         PIO0,
@@ -62,7 +126,7 @@ async fn main(spawner: Spawner) {
     let mut switch = Switch::new();
 
     loop {
-        if let Ok(command) = CHANNEL.try_recv() {
+        if let Ok(command) = CHANNEL_SENSOR.try_recv() {
             // defmt::info!("Command!: {}", command);
             match command {
                 Command::Level(direction) => world.on_direction(direction),
@@ -109,10 +173,44 @@ async fn sensor_task(mut apds: Apds9960<'static, I2C0, Async>) -> ! {
         // }
         apds.gesture().await;
         if let Some(command) = apds.command() {
-            if let Err(_err) = CHANNEL.try_send(command) {
+            if let Err(_err) = CHANNEL_SENSOR.try_send(command) {
                 defmt::error!("Command channel buffer is full");
             }
         }
         ticker.next().await;
     }
+}
+
+#[embassy_executor::task]
+async fn wifi_task(
+    runner: cyw43::Runner<
+        'static,
+        Output<'static, PIN_23>,
+        PioSpi<'static, PIN_25, PIO1, 0, DMA_CH1>,
+    >,
+) -> ! {
+    runner.run().await
+}
+
+#[embassy_executor::task]
+async fn net_task(stack: &'static Stack<cyw43::NetDriver<'static>>) -> ! {
+    stack.run().await
+}
+
+#[embassy_executor::task]
+async fn http_task(
+    control: Control<'static>,
+    stack: &'static Stack<cyw43::NetDriver<'static>>,
+) -> ! {
+    run_http(control, stack, &CHANNEL_UPDATE).await;
+    defmt::unreachable!();
+}
+
+#[embassy_executor::task]
+async fn firmware_update_task(watchdog: WATCHDOG, flash: FLASH) -> ! {
+    // Block task until receiving firmware update start signal
+    CHANNEL_UPDATE.recv().await;
+    defmt::info!("Flash signal received");
+    update_firmware(&CHANNEL_UPDATE, watchdog, flash).await;
+    defmt::unreachable!();
 }
