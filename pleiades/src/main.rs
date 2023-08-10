@@ -118,8 +118,8 @@ async fn main(spawner: Spawner) {
         NUM_LEDS_COLUMN,
         NUM_LEDS,
         { 2 * NUM_LEDS },
-        // > = World::fire_from(ws2812);
-    > = World::matrix_from(ws2812);
+    > = World::fire_from(ws2812);
+    // > = World::matrix_from(ws2812);
     // > = World::northen_light_from(ws2812);
     // > = World::voronoi_from(ws2812);
 

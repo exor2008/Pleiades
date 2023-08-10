@@ -37,6 +37,7 @@ pub async fn update_firmware<'a>(
     // led.set_high();
     let mut offset = 0;
     let mut buf: AlignedBuffer<4096> = AlignedBuffer([0; 4096]);
+    let mut buf2: AlignedBuffer<2> = AlignedBuffer([0; 2]);
     defmt::info!("preparing update");
 
     let state = updater
@@ -55,27 +56,49 @@ pub async fn update_firmware<'a>(
         .unwrap();
     defmt::info!("writer created, starting write");
 
-    let mut chunk = firmware.recv().await;
+    // let mut chunk = firmware.recv().await;
 
-    while !chunk.is_empty() {
-        buf.0[..chunk.len()].copy_from_slice(&chunk);
-        // defmt::info!("writing block at offset {}", offset);
-        writer.write(offset, &buf.0[..]).unwrap();
-        offset += chunk.len() as u32;
-        // Timer::after(Duration::from_millis(500)).await;
-        watchdog.feed();
+    // while !chunk.is_empty() {
+    //     buf.0[..chunk.len()].copy_from_slice(&chunk.as_slice());
+    //     // defmt::info!("writing block at offset {}", offset);
+    //     writer.write(offset, &buf.0[..chunk.len()]).unwrap();
+    //     offset += chunk.len() as u32;
+    //     // Timer::after(Duration::from_millis(500)).await;
+    //     watchdog.feed();
 
-        chunk = firmware.recv().await;
-    }
+    //     chunk = firmware.recv().await;
+    // }
+
+    // let app = include_bytes!("D:\\matrix.bin");
+
+    // for chunk in app.chunks(4096) {
+    //     buf.0[..chunk.len()].copy_from_slice(&chunk[..chunk.len()]);
+    //     defmt::info!("writing block at offset {}", offset);
+    //     writer.write(offset, &buf.0[..chunk.len()]).unwrap();
+    //     offset += chunk.len() as u32;
+    //     watchdog.feed();
+    // }
+
+    // for chunk in app.chunks(4096) {
+    //     buf.0[..chunk.len()].copy_from_slice(&chunk[..chunk.len()]);
+    //     defmt::info!("writing block at offset {}", offset);
+    //     writer.write(offset, &buf.0[..chunk.len()]).unwrap();
+    //     // updater
+    //     //     .write_firmware(&mut buf2.0[..1], offset, &buf.0[..chunk.len()])
+    //     //     .unwrap();
+    //     offset += chunk.len() as u32;
+    //     watchdog.feed();
+    // }
 
     watchdog.feed();
-    defmt::info!("firmware written, marking update");
+    defmt::info!("firmware written ({} bytes), marking update", offset);
     updater.mark_updated(&mut buf.0[..1]).unwrap();
-    Timer::after(Duration::from_secs(1)).await;
+    Timer::after(Duration::from_secs(2)).await;
     // led.set_low();
     defmt::info!("update marked, resetting");
-    Timer::after(Duration::from_secs(1)).await;
+    // Timer::after(Duration::from_secs(1)).await;
     cortex_m::peripheral::SCB::sys_reset();
+    // loop {}
 }
 
 pub fn mark_booted(flash: &FLASH) {

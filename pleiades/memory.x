@@ -1,9 +1,11 @@
-MEMORY {
-    BOOT2 : ORIGIN = 0x10000000, LENGTH = 0x100
-    FLASH : ORIGIN = 0x10000100, LENGTH = 1024K - 0x100
-    BOOTLOADER_STATE : ORIGIN = 0x10100000, LENGTH = 4K
-    DFU : ORIGIN = 0x10101000, LENGTH = 1024K - 512K
-    RAM   : ORIGIN = 0x20000000, LENGTH = 264K
+MEMORY
+{
+  /* NOTE 1 K = 1 KiBi = 1024 bytes */
+  BOOT2                             : ORIGIN = 0x10000000, LENGTH = 0x100
+  BOOTLOADER_STATE                  : ORIGIN = 0x10006000, LENGTH = 4K
+  FLASH                             : ORIGIN = 0x10007000, LENGTH = 512K
+  DFU                               : ORIGIN = 0x10087000, LENGTH = 516K
+  RAM                               : ORIGIN = 0x20000000, LENGTH = 256K
 }
 
 __bootloader_state_start = ORIGIN(BOOTLOADER_STATE) - ORIGIN(BOOT2);
