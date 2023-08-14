@@ -99,6 +99,7 @@ pub fn enum_world(attr: TokenStream, item: TokenStream) -> TokenStream {
     let (impl_generics, ty_generics, where_clause) = &item.generics.split_for_impl();
 
     let mut from_world_funcs = quote! {};
+    let mut match_blocks = quote! {};
     let mut into_funcs = quote! {};
     let mut on_directions_funcs = quote! {};
 
@@ -112,6 +113,14 @@ pub fn enum_world(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         };
         from_world_funcs.extend(func_code);
+
+        let match_block = quote! {
+            Self::#variant(ref mut #snake) => {
+                #snake.tick().await;
+                #snake.flush().await;
+            }
+        };
+        match_blocks.extend(match_block);
 
         let into_func_code = quote! {
             Self::#variant(#snake) => #snake.into(),
@@ -130,6 +139,12 @@ pub fn enum_world(attr: TokenStream, item: TokenStream) -> TokenStream {
         impl #impl_generics #name #ty_generics #where_clause
         {
             #from_world_funcs
+
+            pub async fn tick(world: &mut World<'a, P, S, L, C, N, N2>) {
+                match world {
+                    #match_blocks
+                }
+            }
         }
 
         impl #impl_generics Into<Ws2812<'a, P, S, N>> for #name #ty_generics #where_clause

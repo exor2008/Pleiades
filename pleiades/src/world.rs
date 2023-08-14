@@ -159,3 +159,38 @@ impl Switch {
         }
     }
 }
+
+// impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize, const N2: usize>
+//     World<'a, P, S, L, C, N, N2>
+// where
+//     P: Instance,
+// {
+//     pub async fn tick(world: &mut World<'a, P, S, L, C, N, N2>) {
+//         match world {
+//             Self::Empty(ref mut empty) => {
+//                 empty.tick().await;
+//                 empty.flush().await;
+//             }
+//             Self::Fire(ref mut fire) => {
+//                 fire.tick().await;
+//                 fire.flush().await;
+//             }
+//             Self::NorthenLight(ref mut nl) => {
+//                 nl.tick().await;
+//                 nl.flush().await;
+//             }
+//             Self::Matrix(ref mut night) => {
+//                 night.tick().await;
+//                 night.flush().await;
+//             }
+//             Self::Voronoi(ref mut voronoi) => {
+//                 voronoi.tick().await;
+//                 voronoi.flush().await;
+//             }
+//             Self::Solid(ref mut voronoi) => {
+//                 voronoi.tick().await;
+//                 voronoi.flush().await;
+//             }
+//         }
+//     }
+// }
