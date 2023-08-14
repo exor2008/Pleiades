@@ -180,8 +180,8 @@ impl StateMashine {
             },
 
             State::Swing => match self.recorded <= 25 {
-                // Gesture is fast...
-                true => match dist == 0 {
+                // Gesture was fast...
+                true => match dist <= 1 {
                     // ... and now finished
                     true => {
                         // Swing

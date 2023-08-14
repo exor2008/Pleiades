@@ -71,28 +71,7 @@ async fn main(spawner: Spawner) {
             }
         }
 
-        match world {
-            World::Empty(ref mut empty) => {
-                empty.tick().await;
-                empty.flush().await;
-            }
-            World::Fire(ref mut fire) => {
-                fire.tick().await;
-                fire.flush().await;
-            }
-            World::NorthenLight(ref mut nl) => {
-                nl.tick().await;
-                nl.flush().await;
-            }
-            World::Matrix(ref mut night) => {
-                night.tick().await;
-                night.flush().await;
-            }
-            World::Voronoi(ref mut voronoi) => {
-                voronoi.tick().await;
-                voronoi.flush().await;
-            }
-        }
+        tick!(world, Empty, Fire, NorthenLight, Matrix, Voronoi, Solid)
     }
 }
 
@@ -115,4 +94,19 @@ async fn sensor_task(mut apds: Apds9960<'static, I2C0, Async>) -> ! {
         }
         ticker.next().await;
     }
+}
+
+// call tick() and flush() for every World case
+#[macro_export]
+macro_rules! tick {
+    ($world:expr, $($variant:ident),*) => {
+        match $world{
+        $(
+            World::$variant(ref mut v) => {
+                v.tick().await;
+                v.flush().await;
+            }
+        )*
+    }
+    };
 }

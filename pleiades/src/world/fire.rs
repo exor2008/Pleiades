@@ -18,13 +18,14 @@ use smart_leds::hsv::Hsv;
 const HEIGHT_COOLDOWN: u8 = 1;
 const HEIGHT_MIN: usize = 3;
 const HEIGHT_MAX: usize = 15;
-const HEIGHT_INIT: usize = 3;
+const HEIGHT_INIT: usize = 9;
+const COLORS: usize = 4;
 
 #[derive(Flush, Into, From)]
 pub struct Fire<'a, P: Instance, const S: usize, const L: usize, const C: usize, const N: usize> {
     led: led_matrix::LedMatrix<'a, P, S, L, C, N>,
     noise: perlin::PerlinNoise,
-    colormap: ColorGradient<4>,
+    colormap: ColorGradient<COLORS>,
     height: CooldownValue<HEIGHT_COOLDOWN, HEIGHT_MIN, HEIGHT_MAX>,
     sparks: Vec<Spark<C>, C>,
     ticker: Ticker,
@@ -40,7 +41,7 @@ where
         let noise = perlin::PerlinNoise::new();
         let colormap = Fire::<P, S, L, C, N>::get_colormap();
         let height = CooldownValue::new(HEIGHT_INIT);
-        let ticker = Ticker::every(Duration::from_millis(50));
+        let ticker = Ticker::every(Duration::from_millis(35));
         let sparks: Vec<Spark<C>, C> = Vec::new();
 
         Self {
@@ -82,7 +83,7 @@ where
             // and write it to buffer
             for i in C - height..C {
                 let temp = (C - i - 1) as f32 / (height - 1) as f32;
-                let color = self.colormap.get_noised(temp, -0.1, 0.1);
+                let color = self.colormap.get_noised(temp, -0.2, 0.2);
                 self.led.write(x, i, color);
             }
         }
@@ -99,7 +100,7 @@ where
     P: Instance,
 {
     fn spawn_spark(&mut self, x: usize, height: usize) {
-        if height < (C - 1) && perlin::rand_float(0.0, 1.0) > 0.855 {
+        if height < (C - 1) && perlin::rand_float(0.0, 1.0) > 0.857 {
             let spark = Spark {
                 x: x as isize,
                 y: (C - 1 - height) as isize,
@@ -125,26 +126,26 @@ where
         }
     }
 
-    fn get_colormap() -> ColorGradient<4> {
+    fn get_colormap() -> ColorGradient<COLORS> {
         let pos = [0.0, 0.2, 0.8, 1.01];
         let hsv = [
             Hsv {
-                hue: 0,
+                hue: 1,
                 sat: 255,
                 val: 48,
             },
             Hsv {
-                hue: 1,
+                hue: 6,
                 sat: 255,
                 val: 100,
             },
             Hsv {
-                hue: 1,
+                hue: 8,
                 sat: 255,
                 val: 150,
             },
             Hsv {
-                hue: 9,
+                hue: 10,
                 sat: 255,
                 val: 200,
             },

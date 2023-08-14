@@ -8,5 +8,6 @@ edition = "2021"
 
 
 [dependencies]
-syn = "1.0"
-quote = "1.0"
+syn = { version = "2.0.28", features = ["fold", "full"] }
+quote = "1.0.32"
+to_snake_case = "0.1.1"

@@ -27,7 +27,7 @@ impl<const COOLDOWNL: u8, const MIN: usize, const MAX: usize> CooldownValue<COOL
         match self.cooldown == 0 {
             true => {
                 self.cooldown = COOLDOWNL;
-                self.value -= 1;
+                self.value = self.value.saturating_sub(1);
                 self.value = max(self.value, MIN);
             }
             false => {

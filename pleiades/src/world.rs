@@ -1,14 +1,15 @@
 use crate::{apds9960::Direction, ws2812::Ws2812};
-use core::usize;
 use embassy_rp::pio::Instance;
+use pleiades_macro_derive::enum_world;
 
 pub mod empty;
 pub mod fire;
 pub mod matrix;
-pub mod norhten_light;
+pub mod northen_light;
+pub mod solid;
 pub mod utils;
 pub mod voronoi;
-// pub mod starry_night;
+
 pub trait Tick {
     async fn tick(&mut self);
 }
@@ -21,6 +22,7 @@ pub trait OnDirection {
     fn on_direction(&mut self, direction: Direction);
 }
 
+#[enum_world(Empty, Fire, NorthenLight, Matrix, Voronoi, Solid)]
 pub enum World<
     'a,
     P,
@@ -34,79 +36,10 @@ pub enum World<
 {
     Empty(empty::Empty<'a, P, S, L, C, N>),
     Fire(fire::Fire<'a, P, S, L, C, N>),
-    NorthenLight(norhten_light::NorthenLight<'a, P, S, L, C, N>),
-    Matrix(matrix::Matrix<'a, P, S, L, C, N, N2>), // StarryNight(starry_night::StarryNight<'a, P, S, L, C, N>),
+    NorthenLight(northen_light::NorthenLight<'a, P, S, L, C, N>),
+    Matrix(matrix::Matrix<'a, P, S, L, C, N, N2>),
     Voronoi(voronoi::Voronoi<'a, P, S, L, C, N>),
-}
-
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize, const N2: usize>
-    World<'a, P, S, L, C, N, N2>
-where
-    P: Instance,
-{
-    pub fn empty_from(ws: Ws2812<'a, P, S, N>) -> Self {
-        let empty = empty::Empty::from(ws);
-        World::Empty(empty)
-    }
-
-    pub fn fire_from(ws: Ws2812<'a, P, S, N>) -> Self {
-        let fire = fire::Fire::from(ws);
-        World::Fire(fire)
-    }
-
-    pub fn northen_light_from(ws: Ws2812<'a, P, S, N>) -> Self {
-        let northen_light = norhten_light::NorthenLight::from(ws);
-        World::NorthenLight(northen_light)
-    }
-
-    pub fn matrix_from(ws: Ws2812<'a, P, S, N>) -> Self {
-        let matrix = matrix::Matrix::from(ws);
-        World::Matrix(matrix)
-    }
-
-    pub fn voronoi_from(ws: Ws2812<'a, P, S, N>) -> Self {
-        let voronoi = voronoi::Voronoi::from(ws);
-        World::Voronoi(voronoi)
-    }
-
-    // pub fn starry_night_from(ws: Ws2812<'a, P, S, N>) -> Self {
-    //     let starry_night = starry_night::StarryNight::from(ws);
-    //     World::StarryNight(starry_night)
-    // }
-}
-
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize, const N2: usize>
-    Into<Ws2812<'a, P, S, N>> for World<'a, P, S, L, C, N, N2>
-where
-    P: Instance,
-{
-    fn into(self) -> Ws2812<'a, P, S, N> {
-        match self {
-            Self::Empty(empty) => empty.into(),
-            Self::Fire(fire) => fire.into(),
-            Self::NorthenLight(nl) => nl.into(),
-            Self::Matrix(m) => m.into(),
-            Self::Voronoi(v) => v.into(),
-            // Self::StarryNight(night) => night.into(),
-        }
-    }
-}
-
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize, const N2: usize>
-    OnDirection for World<'a, P, S, L, C, N, N2>
-where
-    P: Instance,
-{
-    fn on_direction(&mut self, direction: Direction) {
-        match self {
-            Self::Empty(empty) => empty.on_direction(direction),
-            Self::Fire(fire) => fire.on_direction(direction),
-            Self::NorthenLight(nl) => nl.on_direction(direction),
-            Self::Matrix(m) => m.on_direction(direction),
-            Self::Voronoi(v) => v.on_direction(direction),
-            // Self::StarryNight(night) => night.on_direction(direction),
-        }
-    }
+    Solid(solid::Solid<'a, P, S, L, C, N>),
 }
 
 pub struct Switch {
@@ -138,7 +71,7 @@ impl Switch {
     ) -> World<'a, P, S, L, C, N, N2> {
         // Destroy old world and return peripherial resources
         self.counter += 1;
-        self.counter = if self.counter > 4 { 1 } else { self.counter }; // TODO: edit
+        self.counter = if self.counter > 5 { 1 } else { self.counter }; // TODO: edit
         self.get_world(world)
     }
 
@@ -219,6 +152,7 @@ impl Switch {
             2 => World::northen_light_from(ws),
             3 => World::matrix_from(ws),
             4 => World::voronoi_from(ws),
+            5 => World::solid_from(ws),
             _ => {
                 defmt::panic!("World counter out of bounds")
             }
