@@ -41,7 +41,8 @@ static_cell = "1.0"
 
 defmt = "0.3"
 defmt-rtt = "0.3"
-panic-probe = { version = "0.3", features = ["print-defmt"] }
+panic-probe = { version = "0.3", features = ["print-defmt"], optional = true }
+panic-reset = { version = "0.1.1", optional = true }
 
 cortex-m = { version = "0.7.6", features = ["critical-section-single-core"] }
 cortex-m-rt = "0.7.0"
@@ -101,3 +102,8 @@ debug = false
 debug-assertions = false
 opt-level = 0
 overflow-checks = false
+
+[features]
+default = ["panic-probe"]
+panic-reset = ["dep:panic-reset"]
+panic-probe = ["dep:panic-probe"]

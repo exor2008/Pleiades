@@ -3,6 +3,7 @@
 #![feature(type_alias_impl_trait)]
 
 use defmt::*;
+use defmt_rtt as _;
 use embassy_executor::Spawner;
 use embassy_rp::bind_interrupts;
 use embassy_rp::i2c::{self, Async, Config, InterruptHandler};
@@ -14,7 +15,11 @@ use embassy_time::{Duration, Ticker};
 use pleiades::apds9960::{Apds9960, Command};
 use pleiades::world::{OnDirection, Switch, World};
 use pleiades::ws2812::Ws2812;
-use {defmt_rtt as _, panic_probe as _};
+
+#[cfg(feature = "panic-probe")]
+use panic_probe as _;
+#[cfg(feature = "panic-reset")]
+use panic_reset as _;
 
 const NUM_LEDS_LINE: usize = 16;
 const NUM_LEDS_COLUMN: usize = 16;
