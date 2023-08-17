@@ -101,18 +101,3 @@ async fn sensor_task(mut apds: Apds9960<'static, I2C0, Async>) -> ! {
         ticker.next().await;
     }
 }
-
-// call tick() and flush() for every World case
-#[macro_export]
-macro_rules! tick {
-    ($world:expr, $($variant:ident),*) => {
-        match $world{
-        $(
-            World::$variant(ref mut v) => {
-                v.tick().await;
-                v.flush().await;
-            }
-        )*
-    }
-    };
-}

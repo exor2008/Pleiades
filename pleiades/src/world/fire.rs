@@ -20,6 +20,8 @@ const HEIGHT_MIN: usize = 3;
 const HEIGHT_MAX: usize = 15;
 const HEIGHT_INIT: usize = 9;
 const COLORS: usize = 4;
+const MAX_SPARKS: usize = 5;
+const SPAWN_COOLDOWN: usize = 60;
 
 #[derive(Flush, Into, From)]
 pub struct Fire<'a, P: Instance, const S: usize, const L: usize, const C: usize, const N: usize> {
@@ -27,8 +29,9 @@ pub struct Fire<'a, P: Instance, const S: usize, const L: usize, const C: usize,
     noise: perlin::PerlinNoise,
     colormap: ColorGradient<COLORS>,
     height: CooldownValue<HEIGHT_COOLDOWN, HEIGHT_MIN, HEIGHT_MAX>,
-    sparks: Vec<Spark<C>, C>,
+    sparks: Vec<Spark, MAX_SPARKS>,
     ticker: Ticker,
+    spawn_counter: usize,
     t: usize,
 }
 
@@ -42,7 +45,8 @@ where
         let colormap = Fire::<P, S, L, C, N>::get_colormap();
         let height = CooldownValue::new(HEIGHT_INIT);
         let ticker = Ticker::every(Duration::from_millis(35));
-        let sparks: Vec<Spark<C>, C> = Vec::new();
+        let sparks: Vec<Spark, MAX_SPARKS> = Vec::new();
+        let spawn_counter = Default::default();
 
         Self {
             led,
@@ -51,6 +55,7 @@ where
             height,
             sparks,
             ticker,
+            spawn_counter,
             t: 0,
         }
     }
@@ -100,11 +105,16 @@ where
     P: Instance,
 {
     fn spawn_spark(&mut self, x: usize, height: usize) {
-        if height < (C - 1) && perlin::rand_float(0.0, 1.0) > 0.857 {
+        self.spawn_counter += 1;
+        if height < (C - 1)
+            && perlin::fair_rand_float() > 0.857
+            && self.spawn_counter >= SPAWN_COOLDOWN
+        {
             let spark = Spark {
                 x: x as isize,
                 y: (C - 1 - height) as isize,
             };
+            self.spawn_counter = 0;
             // Do not spawn spark if it's already too many sparks
             if let Err(_) = self.sparks.push(spark) {}
         }
@@ -174,15 +184,19 @@ where
 }
 
 #[derive(Debug)]
-struct Spark<const C: usize> {
+struct Spark {
     x: isize,
     y: isize,
 }
 
-impl<const C: usize> Spark<C> {
+impl Spark {
     fn up(&mut self) {
-        let mut rng = RoscRng;
-        let dir: isize = rng.gen_range(-1..=2);
+        let rnd = perlin::fair_rand_float();
+        let dir = match rnd {
+            rnd if rnd <= 0.2 => -1,
+            rnd if rnd >= 0.6 => 1,
+            _ => 0,
+        };
 
         self.y -= 1;
         self.x += dir;

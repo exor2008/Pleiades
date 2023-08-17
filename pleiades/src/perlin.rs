@@ -3,6 +3,7 @@
 use embassy_rp::clocks::RoscRng;
 use heapless::Vec;
 use micromath::F32Ext;
+use rand::RngCore;
 use rand::{seq::SliceRandom, Rng};
 
 /// Perlin Noise generator that outputs 1/2/3D Perlin noise
@@ -238,6 +239,11 @@ pub fn rand_uint(min: u32, max: u32) -> u32 {
 pub fn rand_int(min: i32, max: i32) -> i32 {
     let mut rng = RoscRng;
     rng.gen_range(min..max)
+}
+
+pub fn fair_rand_float() -> f32 {
+    let mut rng = RoscRng;
+    (rng.next_u64() as f32) / (u64::MAX as f32)
 }
 
 pub fn spawn_chance(numerator: u32, denominator: u32) -> bool {
