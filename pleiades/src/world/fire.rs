@@ -20,7 +20,7 @@ const HEIGHT_MIN: usize = 3;
 const HEIGHT_MAX: usize = 15;
 const HEIGHT_INIT: usize = 9;
 const COLORS: usize = 4;
-const MAX_SPARKS: usize = 5;
+const MAX_SPARKS: usize = 2;
 const SPAWN_COOLDOWN: usize = 60;
 
 #[derive(Flush, Into, From)]

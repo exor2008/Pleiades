@@ -33,5 +33,5 @@ jobs:
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
-        name: pleiades v 0.0.2
+        name: pleiades v 0.0.3
         path: pleiades.uf2
