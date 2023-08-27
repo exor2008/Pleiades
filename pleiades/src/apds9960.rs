@@ -95,7 +95,7 @@ impl<'d, T: Instance> Apds9960<'d, T, i2c::Async> {
         Ok(())
     }
 
-    async fn read(&mut self) -> Result<u8, Error> {
+    pub async fn read(&mut self) -> Result<u8, Error> {
         let mut is_prox = [0u8];
         self.i2c
             .write_read(DEV_ADDR, &[Register::STATUS], &mut is_prox)
@@ -161,7 +161,7 @@ impl StateMashine {
         match self.state {
             State::Check => match dist {
                 // dist > 0
-                dist if dist > 2 => match self.succ_checks > 3 {
+                dist if dist > 3 => match self.succ_checks > 3 {
                     true => {
                         self.succ_checks += 1;
                         self.recorded = self.succ_checks;
@@ -181,7 +181,7 @@ impl StateMashine {
 
             State::Swing => match self.recorded <= 25 {
                 // Gesture was fast...
-                true => match dist <= 1 {
+                true => match dist <= 3 {
                     // ... and now finished
                     true => {
                         // Swing
@@ -203,6 +203,7 @@ impl StateMashine {
                         self.reset();
                         State::Check
                     }
+                    // Not just swing
                     false => {
                         self.init_dist = dist;
                         State::Record
@@ -229,7 +230,7 @@ impl StateMashine {
                     _checks => State::Record,
                 },
                 // Gesture is over
-                dist if dist == 0 => {
+                dist if dist <= 3 => {
                     self.reset();
                     State::Check
                 }

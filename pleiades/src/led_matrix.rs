@@ -50,6 +50,11 @@ impl<'c, P: Instance, const S: usize, const L: usize, const C: usize, const N: u
         self.data = [bg; N];
     }
 
+    pub fn read(&self, x: usize, y: usize) -> RGB8 {
+        let index = self.index(x, y);
+        self.data[index]
+    }
+
     fn index(&self, x: usize, y: usize) -> usize {
         match x % 2 == 0 {
             true => x * L + y,

@@ -14,6 +14,7 @@ use heapless::Vec;
 use pleiades_macro_derive::{Flush, From, Into};
 use rand::Rng;
 use smart_leds::hsv::Hsv;
+use smart_leds::RGB8;
 
 const HEIGHT_COOLDOWN: u8 = 1;
 const HEIGHT_MIN: usize = 3;
@@ -59,6 +60,37 @@ where
             t: 0,
         }
     }
+
+    fn antialiasing(&mut self) {
+        let mut buffer = [[RGB8::default(); L]; C];
+
+        for y in 0..L {
+            for x in 0..C {
+                let color = self.led.read(x, y);
+                if color != RGB8::default() {
+                    let alias_color = RGB8::from(color / 2);
+                    match x {
+                        x if x == 0 => buffer[x + 1][y] = alias_color,
+                        x if x == C - 1 => buffer[x - 1][y] = alias_color,
+                        x => {
+                            buffer[x + 1][y] = alias_color;
+                            buffer[x - 1][y] = alias_color;
+                        }
+                    }
+                }
+            }
+        }
+
+        for y in 0..L {
+            for x in 0..C {
+                let color = self.led.read(x, y);
+                if color == RGB8::default() {
+                    let c = buffer[x][y];
+                    self.led.write(x, y, c);
+                }
+            }
+        }
+    }
 }
 
 impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize> Tick
@@ -86,12 +118,13 @@ where
 
             // Color every fire pillar pixel
             // and write it to buffer
-            for i in C - height..C {
-                let temp = (C - i - 1) as f32 / (height - 1) as f32;
+            for i in L - height..L {
+                let temp = (L - i - 1) as f32 / (height - 1) as f32;
                 let color = self.colormap.get_noised(temp, -0.2, 0.2);
                 self.led.write(x, i, color);
             }
         }
+        self.antialiasing();
         self.process_sparks();
         self.draw_sparks();
 
