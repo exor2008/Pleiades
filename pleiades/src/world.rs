@@ -7,6 +7,7 @@ pub mod fire;
 pub mod matrix;
 pub mod northen_light;
 pub mod solid;
+pub mod starry_night;
 pub mod utils;
 pub mod voronoi;
 
@@ -22,7 +23,7 @@ pub trait OnDirection {
     fn on_direction(&mut self, direction: Direction);
 }
 
-#[enum_world(Empty, Fire, NorthenLight, Matrix, Voronoi, Solid)]
+#[enum_world(Empty, Fire, NorthenLight, Matrix, Voronoi, StarryNight, Solid)]
 pub enum World<
     'a,
     P,
@@ -39,6 +40,7 @@ pub enum World<
     NorthenLight(northen_light::NorthenLight<'a, P, S, L, C, N>),
     Matrix(matrix::Matrix<'a, P, S, L, C, N, N2>),
     Voronoi(voronoi::Voronoi<'a, P, S, L, C, N>),
+    StarryNight(starry_night::StarryNight<'a, P, S, L, C, N>),
     Solid(solid::Solid<'a, P, S, L, C, N>),
 }
 
@@ -152,7 +154,8 @@ impl Switch {
             2 => World::northen_light_from(ws),
             3 => World::matrix_from(ws),
             4 => World::voronoi_from(ws),
-            5 => World::solid_from(ws),
+            5 => World::starry_night_from(ws),
+            6 => World::solid_from(ws),
             _ => {
                 defmt::panic!("World counter out of bounds")
             }

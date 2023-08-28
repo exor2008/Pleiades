@@ -112,12 +112,10 @@ impl<'d, T: Instance> Apds9960<'d, T, i2c::Async> {
         Err(Error::Abort(i2c::AbortReason::Other(42)))
     }
 
-    pub async fn gesture(&mut self) -> Option<Command> {
+    pub async fn gesture(&mut self) {
         if let Ok(dist) = self.read().await {
             self.sm.next(dist);
-            return Some(Command::Swing);
         }
-        None
     }
 
     pub fn command(&mut self) -> Option<Command> {
@@ -161,7 +159,7 @@ impl StateMashine {
         match self.state {
             State::Check => match dist {
                 // dist > 0
-                dist if dist > 3 => match self.succ_checks > 3 {
+                dist if dist > 3 => match self.succ_checks > 7 {
                     true => {
                         self.succ_checks += 1;
                         self.recorded = self.succ_checks;
@@ -179,7 +177,7 @@ impl StateMashine {
                 }
             },
 
-            State::Swing => match self.recorded <= 25 {
+            State::Swing => match self.recorded <= 30 {
                 // Gesture was fast...
                 true => match dist <= 3 {
                     // ... and now finished
@@ -196,7 +194,7 @@ impl StateMashine {
                     }
                 },
                 // Gesture is slow, not just swing
-                false => match dist == 0 {
+                false => match dist <= 3 {
                     true => {
                         // Swing
                         self.command = Some(Command::Swing);
