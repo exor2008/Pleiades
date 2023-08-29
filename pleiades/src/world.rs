@@ -11,6 +11,8 @@ pub mod starry_night;
 pub mod utils;
 pub mod voronoi;
 
+const WORLDS: usize = 6;
+
 pub trait Tick {
     async fn tick(&mut self);
 }
@@ -73,7 +75,11 @@ impl Switch {
     ) -> World<'a, P, S, L, C, N, N2> {
         // Destroy old world and return peripherial resources
         self.counter += 1;
-        self.counter = if self.counter > 5 { 1 } else { self.counter }; // TODO: edit
+        self.counter = if self.counter > WORLDS {
+            1
+        } else {
+            self.counter
+        }; // TODO: edit
         self.get_world(world)
     }
 
