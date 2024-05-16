@@ -6,9 +6,9 @@ use defmt::*;
 use defmt_rtt as _;
 use embassy_executor::Spawner;
 use embassy_rp::bind_interrupts;
-use embassy_rp::i2c::{self, Async, Config, InterruptHandler};
+use embassy_rp::i2c::{self, Async, Config, InterruptHandler as I2CInterruptHandler};
 use embassy_rp::peripherals::{I2C0, PIO0};
-use embassy_rp::pio::Pio;
+use embassy_rp::pio::{InterruptHandler as PioInterruptHandler, Pio};
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Ticker};
@@ -28,7 +28,8 @@ const NUM_LEDS: usize = NUM_LEDS_LINE * NUM_LEDS_COLUMN;
 const STATE_MACHINE: usize = 0;
 
 bind_interrupts!(struct Irqs {
-    I2C0_IRQ => InterruptHandler<I2C0>;
+    I2C0_IRQ => I2CInterruptHandler<I2C0>;
+    PIO0_IRQ_0 => PioInterruptHandler<PIO0>;
 });
 
 static CHANNEL: Channel<ThreadModeRawMutex, Command, 1> = Channel::new();
@@ -47,7 +48,7 @@ async fn main(spawner: Spawner) {
 
     let Pio {
         mut common, sm0, ..
-    } = Pio::new(p.PIO0);
+    } = Pio::new(p.PIO0, Irqs);
 
     let mut ws2812: Ws2812<PIO0, STATE_MACHINE, NUM_LEDS> =
         Ws2812::new(&mut common, sm0, p.DMA_CH0, p.PIN_22);
@@ -64,7 +65,7 @@ async fn main(spawner: Spawner) {
     let mut switch = Switch::new();
 
     loop {
-        if let Ok(command) = CHANNEL.try_recv() {
+        if let Ok(command) = CHANNEL.try_receive() {
             // defmt::info!("Command!: {}", command);
             match command {
                 Command::Level(direction) => world.on_direction(direction),

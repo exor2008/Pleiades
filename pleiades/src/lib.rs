@@ -1,9 +1,8 @@
 #![no_std]
 #![no_main]
 #![feature(type_alias_impl_trait)]
-#![feature(async_fn_in_trait)]
 #![allow(incomplete_features)]
-#![feature(core_intrinsics)]
+#![allow(async_fn_in_trait)]
 
 pub mod apds9960;
 pub mod color;
