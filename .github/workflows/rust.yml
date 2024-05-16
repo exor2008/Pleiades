@@ -21,7 +21,7 @@ jobs:
     - name: Install elf to uf2 converter
       run: cargo install elf2uf2-rs
     - name: Install probe-rs
-      run: cargo install probe-rs --features cli --version 0.21.0
+      run: cargo install probe-rs --locked --features cli --version 0.21.0
     - name: Build
       run: |
         cd pleiades
