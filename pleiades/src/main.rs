@@ -13,6 +13,7 @@ use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Ticker};
 use pleiades::apds9960::{Apds9960, Command};
+use pleiades::led_matrix::LedMatrix;
 use pleiades::world::{OnDirection, Switch, World};
 use pleiades::ws2812::Ws2812;
 
@@ -48,18 +49,14 @@ async fn main(spawner: Spawner) {
         mut common, sm0, ..
     } = Pio::new(p.PIO0);
 
-    let ws2812: Ws2812<PIO0, STATE_MACHINE, NUM_LEDS> =
+    let mut ws2812: Ws2812<PIO0, STATE_MACHINE, NUM_LEDS> =
         Ws2812::new(&mut common, sm0, p.DMA_CH0, p.PIN_22);
 
-    let mut world: World<
-        '_,
-        PIO0,
-        STATE_MACHINE,
-        NUM_LEDS_LINE,
-        NUM_LEDS_COLUMN,
-        NUM_LEDS,
-        { 2 * NUM_LEDS },
-    > = World::fire_from(ws2812);
+    let mut led_mareix: LedMatrix<Ws2812<PIO0, 0, NUM_LEDS>, NUM_LEDS_LINE, NUM_LEDS> =
+        LedMatrix::new(&mut ws2812);
+
+    let mut world: World<'_, _, NUM_LEDS_COLUMN, NUM_LEDS_LINE, NUM_LEDS, { 2 * NUM_LEDS }> =
+        World::fire_new(&mut led_mareix);
     // > = World::matrix_from(ws2812);
     // > = World::northen_light_from(ws2812);
     // > = World::voronoi_from(ws2812);
@@ -71,8 +68,8 @@ async fn main(spawner: Spawner) {
             // defmt::info!("Command!: {}", command);
             match command {
                 Command::Level(direction) => world.on_direction(direction),
-                Command::Swing => world = switch.switch_world(world),
-                Command::SwitchPower => world = switch.switch_power(world),
+                Command::Swing => world = switch.switch_world(&mut led_mareix),
+                Command::SwitchPower => world = switch.switch_power(&mut led_mareix),
             }
         }
 

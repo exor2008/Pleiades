@@ -1,5 +1,4 @@
-use crate::{apds9960::Direction, ws2812::Ws2812};
-use embassy_rp::pio::Instance;
+use crate::{apds9960::Direction, led_matrix::WritableMatrix};
 use pleiades_macro_derive::enum_world;
 
 pub mod empty;
@@ -27,23 +26,20 @@ pub trait OnDirection {
 
 #[enum_world(Empty, Fire, NorthenLight, Matrix, Voronoi, StarryNight, Solid)]
 pub enum World<
-    'a,
-    P,
-    const S: usize,
-    const L: usize,
+    'led,
+    Led: WritableMatrix,
     const C: usize,
+    const L: usize,
     const N: usize,
     const N2: usize,
-> where
-    P: Instance,
-{
-    Empty(empty::Empty<'a, P, S, L, C, N>),
-    Fire(fire::Fire<'a, P, S, L, C, N>),
-    NorthenLight(northen_light::NorthenLight<'a, P, S, L, C, N>),
-    Matrix(matrix::Matrix<'a, P, S, L, C, N, N2>),
-    Voronoi(voronoi::Voronoi<'a, P, S, L, C, N>),
-    StarryNight(starry_night::StarryNight<'a, P, S, L, C, N>),
-    Solid(solid::Solid<'a, P, S, L, C, N>),
+> {
+    Empty(empty::Empty<'led, Led>),
+    Fire(fire::Fire<'led, Led, C, L>),
+    NorthenLight(northen_light::NorthenLight<'led, Led, C, L, N>),
+    Matrix(matrix::Matrix<'led, Led, C, L, N, N2>),
+    Voronoi(voronoi::Voronoi<'led, Led, C, L, N>),
+    StarryNight(starry_night::StarryNight<'led, Led, C, L, N>),
+    Solid(solid::Solid<'led, Led, C, L, N>),
 }
 
 pub struct Switch {
@@ -62,106 +58,99 @@ impl Switch {
     }
 
     pub fn switch_world<
-        'a,
-        P: Instance,
-        const S: usize,
-        const L: usize,
+        'led,
+        Led: WritableMatrix,
         const C: usize,
+        const L: usize,
         const N: usize,
         const N2: usize,
     >(
         &mut self,
-        world: World<'a, P, S, L, C, N, N2>,
-    ) -> World<'a, P, S, L, C, N, N2> {
+        led: &'led mut Led,
+    ) -> World<'led, Led, C, L, N, N2> {
         // Destroy old world and return peripherial resources
         self.counter += 1;
         self.counter = if self.counter > WORLDS {
             1
         } else {
             self.counter
-        }; // TODO: edit
-        self.get_world(world)
+        };
+        self.get_world(led)
     }
 
     fn turn_off<
-        'a,
-        P: Instance,
-        const S: usize,
-        const L: usize,
+        'led,
+        Led: WritableMatrix,
         const C: usize,
+        const L: usize,
         const N: usize,
         const N2: usize,
     >(
         &mut self,
-        world: World<'a, P, S, L, C, N, N2>,
-    ) -> World<'a, P, S, L, C, N, N2> {
+        led: &'led mut Led,
+    ) -> World<'led, Led, C, L, N, N2> {
         self.prev_counter = self.counter;
         self.counter = 0;
-        self.get_world(world)
+        self.get_world(led)
     }
 
     fn turn_on<
-        'a,
-        P: Instance,
-        const S: usize,
-        const L: usize,
+        'led,
+        Led: WritableMatrix,
         const C: usize,
+        const L: usize,
         const N: usize,
         const N2: usize,
     >(
         &mut self,
-        world: World<'a, P, S, L, C, N, N2>,
-    ) -> World<'a, P, S, L, C, N, N2> {
+        led: &'led mut Led,
+    ) -> World<'led, Led, C, L, N, N2> {
         self.counter = self.prev_counter;
-        self.get_world(world)
+        self.get_world(led)
     }
 
     pub fn switch_power<
-        'a,
-        P: Instance,
-        const S: usize,
-        const L: usize,
+        'led,
+        Led: WritableMatrix,
         const C: usize,
+        const L: usize,
         const N: usize,
         const N2: usize,
     >(
         &mut self,
-        world: World<'a, P, S, L, C, N, N2>,
-    ) -> World<'a, P, S, L, C, N, N2> {
+        led: &'led mut Led,
+    ) -> World<'led, Led, C, L, N, N2> {
         match self.is_on {
             true => {
                 self.is_on = false;
-                self.turn_off(world)
+                self.turn_off(led)
             }
             false => {
                 self.is_on = true;
-                self.turn_on(world)
+                self.turn_on(led)
             }
         }
     }
 
     fn get_world<
-        'a,
-        P: Instance,
-        const S: usize,
-        const L: usize,
+        'led,
+        Led: WritableMatrix,
         const C: usize,
+        const L: usize,
         const N: usize,
         const N2: usize,
     >(
         &mut self,
-        world: World<'a, P, S, L, C, N, N2>,
-    ) -> World<'a, P, S, L, C, N, N2> {
-        // Destroy old world and return peripherial resources
-        let ws: Ws2812<'a, P, S, N> = world.into();
+        led: &'led mut Led,
+    ) -> World<'led, Led, C, L, N, N2> {
         match self.counter {
-            0 => World::empty_from(ws),
-            1 => World::fire_from(ws),
-            2 => World::northen_light_from(ws),
-            3 => World::matrix_from(ws),
-            4 => World::voronoi_from(ws),
-            5 => World::starry_night_from(ws),
-            6 => World::solid_from(ws),
+            0 => World::empty_new(led),
+            1 => World::fire_new(led),
+            2 => World::northen_light_new(led),
+            3 => World::matrix_new(led),
+            4 => World::voronoi_new(led),
+            5 => World::starry_night_new(led),
+            6 => World::solid_new(led),
             _ => {
                 defmt::panic!("World counter out of bounds")
             }

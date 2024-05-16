@@ -1,17 +1,15 @@
 use super::OnDirection;
 use crate::apds9960::Direction;
 use crate::color::{Color, ColorGradient};
-use crate::led_matrix;
+use crate::led_matrix::WritableMatrix;
 use crate::perlin;
 use crate::world::utils::CooldownValue;
 use crate::world::{Flush, Tick};
-use crate::ws2812::Ws2812;
 use core::iter::Sum;
-use embassy_rp::pio::Instance;
 use embassy_time::{Duration, Ticker};
 use heapless::Vec;
 use perlin::rand_float;
-use pleiades_macro_derive::{Flush, From, Into};
+use pleiades_macro_derive::Flush;
 use smart_leds::RGB8;
 
 const PATTERNS_COOLDOWNL: u8 = 1;
@@ -19,16 +17,9 @@ const PATTERNS_MAX: usize = 9;
 const PATTERNS_MIN: usize = 2;
 const PATTERNS_INIT: usize = 6;
 
-#[derive(Flush, Into, From)]
-pub struct NorthenLight<
-    'a,
-    P: Instance,
-    const S: usize,
-    const L: usize,
-    const C: usize,
-    const N: usize,
-> {
-    led: led_matrix::LedMatrix<'a, P, S, L, C, N>,
+#[derive(Flush)]
+pub struct NorthenLight<'led, Led: WritableMatrix, const C: usize, const L: usize, const N: usize> {
+    led: &'led mut Led,
     colormap: ColorGradient<C>,
     ticker: Ticker,
     patterns: Vec<Pattern<L, C, N>, PATTERNS_MAX>,
@@ -37,15 +28,12 @@ pub struct NorthenLight<
     last_spawn: isize,
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize>
-    NorthenLight<'a, P, S, L, C, N>
-where
-    P: Instance,
+impl<'led, Led: WritableMatrix, const C: usize, const L: usize, const N: usize>
+    NorthenLight<'led, Led, C, L, N>
 {
-    pub fn new(ws: Ws2812<'a, P, S, N>) -> Self {
-        let led = led_matrix::LedMatrix::new(ws);
+    pub fn new(led: &'led mut Led) -> Self {
         let ticker = Ticker::every(Duration::from_millis(20));
-        let colormap = NorthenLight::<'a, P, S, L, C, N>::get_colormap();
+        let colormap = NorthenLight::<'led, Led, C, L, N>::get_colormap();
         let patterns: Vec<Pattern<L, C, N>, PATTERNS_MAX> = Vec::new();
         let curr_n_patterns = CooldownValue::new(PATTERNS_INIT);
 
@@ -61,10 +49,8 @@ where
     }
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize> Tick
-    for NorthenLight<'a, P, S, L, C, N>
-where
-    P: Instance,
+impl<'led, Led: WritableMatrix, const C: usize, const L: usize, const N: usize> Tick
+    for NorthenLight<'led, Led, C, L, N>
 {
     async fn tick(&mut self) {
         self.led.clear();
@@ -86,10 +72,8 @@ where
     }
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize>
-    NorthenLight<'a, P, S, L, C, N>
-where
-    P: Instance,
+impl<'led, Led: WritableMatrix, const C: usize, const L: usize, const N: usize>
+    NorthenLight<'led, Led, C, L, N>
 {
     fn spawn_patterns(&mut self) {
         let time_till_last_spawn = self.t as isize - self.last_spawn;
@@ -128,10 +112,8 @@ where
     }
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize> OnDirection
-    for NorthenLight<'a, P, S, L, C, N>
-where
-    P: Instance,
+impl<'led, Led: WritableMatrix, const C: usize, const L: usize, const N: usize> OnDirection
+    for NorthenLight<'led, Led, C, L, N>
 {
     fn on_direction(&mut self, direction: Direction) {
         match direction {

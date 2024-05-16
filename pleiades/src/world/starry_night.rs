@@ -3,12 +3,10 @@ use crate::apds9960::Direction;
 use crate::color::{Color, ColorGradient};
 use crate::world::utils::CooldownValue;
 use crate::world::{Flush, Tick};
-use crate::ws2812::Ws2812;
-use crate::{led_matrix, perlin};
-use embassy_rp::pio::Instance;
+use crate::{led_matrix::WritableMatrix, perlin};
 use embassy_time::{Duration, Ticker};
 use heapless::Vec;
-use pleiades_macro_derive::{Flush, From, Into};
+use pleiades_macro_derive::Flush;
 use smart_leds::RGB8;
 
 const STARS_COLORS: usize = 7;
@@ -22,16 +20,9 @@ const STAR_SPAWN_COOLDOWN: usize = 10;
 const X_COOLDOWN: usize = 0;
 const Y_COOLDOWN: usize = 1;
 
-#[derive(Flush, Into, From)]
-pub struct StarryNight<
-    'a,
-    P: Instance,
-    const S: usize,
-    const L: usize,
-    const C: usize,
-    const N: usize,
-> {
-    led: led_matrix::LedMatrix<'a, P, S, L, C, N>,
+#[derive(Flush)]
+pub struct StarryNight<'led, Led: WritableMatrix, const C: usize, const L: usize, const N: usize> {
+    led: &'led mut Led,
     stars_colormap: ColorGradient<STARS_COLORS>,
     stars: Vec<Star<C, L>, STARS>,
     ticker: Ticker,
@@ -43,13 +34,10 @@ pub struct StarryNight<
     t: usize,
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize>
-    StarryNight<'a, P, S, L, C, N>
-where
-    P: Instance,
+impl<'led, Led: WritableMatrix, const C: usize, const L: usize, const N: usize>
+    StarryNight<'led, Led, C, L, N>
 {
-    pub fn new(ws: Ws2812<'a, P, S, N>) -> Self {
-        let led = led_matrix::LedMatrix::new(ws);
+    pub fn new(led: &'led mut Led) -> Self {
         let ticker = Ticker::every(Duration::from_millis(50));
         let stars_colormap = Self::get_stars_colormap();
         let buffer_space = Self::get_bg();
@@ -135,10 +123,8 @@ where
     }
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize> Tick
-    for StarryNight<'a, P, S, L, C, N>
-where
-    P: Instance,
+impl<'led, Led: WritableMatrix, const C: usize, const L: usize, const N: usize> Tick
+    for StarryNight<'led, Led, C, L, N>
 {
     async fn tick(&mut self) {
         if self.t % self.frames.value() == 0 {
@@ -165,10 +151,8 @@ where
     }
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize>
-    StarryNight<'a, P, S, L, C, N>
-where
-    P: Instance,
+impl<'led, Led: WritableMatrix, const C: usize, const L: usize, const N: usize>
+    StarryNight<'led, Led, C, L, N>
 {
     fn spawn_stars(&mut self) {
         if !self.stars.is_full() && self.since_star_spawn >= STAR_SPAWN_COOLDOWN {
@@ -199,10 +183,8 @@ where
     }
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize> OnDirection
-    for StarryNight<'a, P, S, L, C, N>
-where
-    P: Instance,
+impl<'led, Led: WritableMatrix, const C: usize, const L: usize, const N: usize> OnDirection
+    for StarryNight<'led, Led, C, L, N>
 {
     fn on_direction(&mut self, direction: Direction) {
         match direction {

@@ -1,17 +1,15 @@
 use super::OnDirection;
 use crate::apds9960::Direction;
 use crate::color::{Color, ColorGradient};
-use crate::led_matrix;
+use crate::led_matrix::WritableMatrix;
 use crate::perlin;
 use crate::world::utils::CooldownValue;
 use crate::world::{Flush, Tick};
-use crate::ws2812::Ws2812;
 use core::f32::consts::PI;
-use embassy_rp::pio::Instance;
 use embassy_time::{Duration, Ticker};
 use heapless::Vec;
 use micromath::F32Ext;
-use pleiades_macro_derive::{Flush, From, Into};
+use pleiades_macro_derive::Flush;
 use smart_leds::RGB8;
 
 const POINTS_COOLDOWN: u8 = 0;
@@ -20,10 +18,9 @@ const POINTS_MIN: usize = 2;
 const POINTS_MAX: usize = 20;
 const TIMES_OF_DAY: usize = 3;
 
-#[derive(Flush, Into, From)]
-pub struct Voronoi<'a, P: Instance, const S: usize, const L: usize, const C: usize, const N: usize>
-{
-    led: led_matrix::LedMatrix<'a, P, S, L, C, N>,
+#[derive(Flush)]
+pub struct Voronoi<'led, Led: WritableMatrix, const C: usize, const L: usize, const N: usize> {
+    led: &'led mut Led,
     buffer_new: [[RGB8; L]; C],
     buffer_old: [[RGB8; L]; C],
     model: Model<L, C>,
@@ -32,13 +29,10 @@ pub struct Voronoi<'a, P: Instance, const S: usize, const L: usize, const C: usi
     time: f32,
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize>
-    Voronoi<'a, P, S, L, C, N>
-where
-    P: Instance,
+impl<'led, Led: WritableMatrix, const C: usize, const L: usize, const N: usize>
+    Voronoi<'led, Led, C, L, N>
 {
-    pub fn new(ws: Ws2812<'a, P, S, N>) -> Self {
-        let led = led_matrix::LedMatrix::new(ws);
+    pub fn new(led: &'led mut Led) -> Self {
         let ticker = Ticker::every(Duration::from_millis(20));
         let time = PI / 2.0;
         let mut model: Model<L, C> = Model::new();
@@ -57,10 +51,8 @@ where
     }
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize> Tick
-    for Voronoi<'a, P, S, L, C, N>
-where
-    P: Instance,
+impl<'led, Led: WritableMatrix, const C: usize, const L: usize, const N: usize> Tick
+    for Voronoi<'led, Led, C, L, N>
 {
     async fn tick(&mut self) {
         self.led.clear();
@@ -91,10 +83,8 @@ where
     }
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize> OnDirection
-    for Voronoi<'a, P, S, L, C, N>
-where
-    P: Instance,
+impl<'led, Led: WritableMatrix, const C: usize, const L: usize, const N: usize> OnDirection
+    for Voronoi<'led, Led, C, L, N>
 {
     fn on_direction(&mut self, direction: Direction) {
         match direction {

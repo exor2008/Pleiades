@@ -2,36 +2,32 @@ use super::OnDirection;
 use crate::apds9960::Direction;
 use crate::color::Color;
 use crate::color::ColorGradient;
-use crate::led_matrix;
+use crate::led_matrix::WritableMatrix;
 use crate::perlin;
 use crate::world::utils::CooldownValue;
 use crate::world::{Flush, Tick};
-use crate::ws2812::Ws2812;
-use embassy_rp::pio::Instance;
 use embassy_time::{Duration, Ticker};
-use pleiades_macro_derive::{Flush, From, Into};
+use pleiades_macro_derive::Flush;
 use smart_leds::RGB8;
 
 const HUE_COOLDOWN: u8 = 0;
 const HUE_MIN: usize = 0;
 const HUE_MAX: usize = 75;
 
-#[derive(Flush, Into, From)]
-pub struct Solid<'a, P: Instance, const S: usize, const L: usize, const C: usize, const N: usize> {
-    led: led_matrix::LedMatrix<'a, P, S, L, C, N>,
+#[derive(Flush)]
+pub struct Solid<'led, Led: WritableMatrix, const C: usize, const L: usize, const N: usize> {
+    led: &'led mut Led,
     colormap: ColorGradient<8>,
     hue: CooldownValue<HUE_COOLDOWN, HUE_MIN, HUE_MAX>,
     ticker: Ticker,
     t: usize,
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize> Solid<'a, P, S, L, C, N>
-where
-    P: Instance,
+impl<'led, Led: WritableMatrix, const C: usize, const L: usize, const N: usize>
+    Solid<'led, Led, C, L, N>
 {
-    pub fn new(ws: Ws2812<'a, P, S, N>) -> Self {
-        let led = led_matrix::LedMatrix::new(ws);
-        let colormap = Solid::<P, S, L, C, N>::get_colormap();
+    pub fn new(led: &'led mut Led) -> Self {
+        let colormap = Solid::<'led, Led, C, L, N>::get_colormap();
         let init_hue = perlin::rand_uint(HUE_MIN as u32, HUE_MAX as u32) as usize;
         let hue = CooldownValue::new(init_hue);
         let ticker = Ticker::every(Duration::from_millis(50));
@@ -60,10 +56,8 @@ where
     }
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize> Tick
-    for Solid<'a, P, S, L, C, N>
-where
-    P: Instance,
+impl<'led, Led: WritableMatrix, const C: usize, const L: usize, const N: usize> Tick
+    for Solid<'led, Led, C, L, N>
 {
     async fn tick(&mut self) {
         self.led.clear();
@@ -77,10 +71,8 @@ where
     }
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize> OnDirection
-    for Solid<'a, P, S, L, C, N>
-where
-    P: Instance,
+impl<'led, Led: WritableMatrix, const C: usize, const L: usize, const N: usize> OnDirection
+    for Solid<'led, Led, C, L, N>
 {
     fn on_direction(&mut self, direction: Direction) {
         match direction {

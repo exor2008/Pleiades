@@ -8,6 +8,10 @@ use fixed::types::U24F8;
 use fixed_macro::fixed;
 use smart_leds::RGB8;
 
+pub trait PioWrite<const N: usize> {
+    async fn write(&mut self, colors: &[RGB8; N]);
+}
+
 pub struct Ws2812<'d, P: Instance, const S: usize, const N: usize> {
     dma: PeripheralRef<'d, AnyChannel>,
     sm: StateMachine<'d, P, S>,
@@ -83,8 +87,10 @@ impl<'d, P: Instance, const S: usize, const N: usize> Ws2812<'d, P, S, N> {
             sm,
         }
     }
+}
 
-    pub async fn write(&mut self, colors: &[RGB8; N]) {
+impl<'d, P: Instance, const S: usize, const N: usize> PioWrite<N> for Ws2812<'d, P, S, N> {
+    async fn write(&mut self, colors: &[RGB8; N]) {
         // Precompute the word bytes from the colors
         let mut words = [0u32; N];
         for i in 0..N {

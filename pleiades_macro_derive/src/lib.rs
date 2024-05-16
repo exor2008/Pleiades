@@ -29,54 +29,6 @@ fn impl_pleiades_flush(ast: &DeriveInput) -> TokenStream {
     gen.into()
 }
 
-#[proc_macro_derive(Into)]
-pub fn pleiades_into_derive(input: TokenStream) -> TokenStream {
-    // Construct a representation of Rust code as a syntax tree
-    // that we can manipulate
-    let ast = parse(input).unwrap();
-
-    // Build the trait implementation
-    impl_pleiades_into(&ast)
-}
-
-fn impl_pleiades_into(ast: &DeriveInput) -> TokenStream {
-    let name = &ast.ident;
-    let (impl_generics, ty_generics, where_clause) = &ast.generics.split_for_impl();
-    let gen = quote! {
-        impl #impl_generics Into<Ws2812<'a, P, S, N>> for #name #ty_generics #where_clause
-        {
-            fn into(self) -> Ws2812<'a, P, S, N> {
-                self.led.into()
-            }
-        }
-    };
-    gen.into()
-}
-
-#[proc_macro_derive(From)]
-pub fn pleiades_from_derive(input: TokenStream) -> TokenStream {
-    // Construct a representation of Rust code as a syntax tree
-    // that we can manipulate
-    let ast = parse(input).unwrap();
-
-    // Build the trait implementation
-    impl_pleiades_from(&ast)
-}
-
-fn impl_pleiades_from(ast: &DeriveInput) -> TokenStream {
-    let name = &ast.ident;
-    let (impl_generics, ty_generics, where_clause) = &ast.generics.split_for_impl();
-    let gen = quote! {
-        impl #impl_generics From<Ws2812<'a, P, S, N>> for #name #ty_generics #where_clause
-        {
-            fn from(ws: Ws2812<'a, P, S, N>) -> Self {
-                Self::new(ws)
-            }
-        }
-    };
-    gen.into()
-}
-
 struct Args {
     variants: Vec<Ident>,
 }
@@ -98,21 +50,20 @@ pub fn enum_world(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let (impl_generics, ty_generics, where_clause) = &item.generics.split_for_impl();
 
-    let mut from_world_funcs = quote! {};
+    let mut new_world_funcs = quote! {};
     let mut match_blocks = quote! {};
-    let mut into_funcs = quote! {};
     let mut on_directions_funcs = quote! {};
 
     for variant in &args.variants {
         let snake = format_ident!("{}", variant.to_string().to_snake_case());
-        let func_name = format_ident!("{}_from", snake);
+        let func_name = format_ident!("{}_new", snake);
         let func_code = quote! {
-            pub fn #func_name (ws: Ws2812<'a, P, S, N>) -> Self {
-                let #snake = #snake::#variant::from(ws);
+            pub fn #func_name (led: &'led mut Led ) -> Self {
+                let #snake = #snake::#variant::new(led);
                 World::#variant(#snake)
             }
         };
-        from_world_funcs.extend(func_code);
+        new_world_funcs.extend(func_code);
 
         let match_block = quote! {
             Self::#variant(ref mut #snake) => {
@@ -121,11 +72,6 @@ pub fn enum_world(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         };
         match_blocks.extend(match_block);
-
-        let into_func_code = quote! {
-            Self::#variant(#snake) => #snake.into(),
-        };
-        into_funcs.extend(into_func_code);
 
         let on_direction_func_code = quote! {
             Self::#variant(#snake) => #snake.on_direction(direction),
@@ -138,20 +84,11 @@ pub fn enum_world(attr: TokenStream, item: TokenStream) -> TokenStream {
 
         impl #impl_generics #name #ty_generics #where_clause
         {
-            #from_world_funcs
+            #new_world_funcs
 
-            pub async fn tick(world: &mut World<'a, P, S, L, C, N, N2>) {
+            pub async fn tick(world: &mut World<'led, Led, C, L, N, N2>) {
                 match world {
                     #match_blocks
-                }
-            }
-        }
-
-        impl #impl_generics Into<Ws2812<'a, P, S, N>> for #name #ty_generics #where_clause
-        {
-            fn into(self) -> Ws2812<'a, P, S, N> {
-                match self {
-                    #into_funcs
                 }
             }
         }

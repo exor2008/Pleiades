@@ -1,45 +1,31 @@
 use super::OnDirection;
 use crate::apds9960::Direction;
-use crate::led_matrix;
+use crate::led_matrix::WritableMatrix;
 use crate::world::{Flush, Tick};
-use crate::ws2812::Ws2812;
-use embassy_rp::pio::Instance;
 use embassy_time::{Duration, Ticker};
-use pleiades_macro_derive::{Flush, From, Into};
+use pleiades_macro_derive::Flush;
 
-#[derive(Flush, Into, From)]
-pub struct Empty<'a, P: Instance, const S: usize, const L: usize, const C: usize, const N: usize> {
-    led: led_matrix::LedMatrix<'a, P, S, L, C, N>,
+#[derive(Flush)]
+pub struct Empty<'led, Led: WritableMatrix> {
+    led: &'led mut Led,
     ticker: Ticker,
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize> Empty<'a, P, S, L, C, N>
-where
-    P: Instance,
-{
-    pub fn new(ws: Ws2812<'a, P, S, N>) -> Self {
-        let led = led_matrix::LedMatrix::new(ws);
+impl<'led, Led: WritableMatrix> Empty<'led, Led> {
+    pub fn new(led: &'led mut Led) -> Self {
         let ticker = Ticker::every(Duration::from_millis(50));
 
         Empty { led, ticker }
     }
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize> Tick
-    for Empty<'a, P, S, L, C, N>
-where
-    P: Instance,
-{
+impl<'led, Led: WritableMatrix> Tick for Empty<'led, Led> {
     async fn tick(&mut self) {
         self.led.clear();
         self.ticker.next().await;
     }
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize> OnDirection
-    for Empty<'a, P, S, L, C, N>
-where
-    P: Instance,
-{
+impl<'led, Led: WritableMatrix> OnDirection for Empty<'led, Led> {
     fn on_direction(&mut self, _direction: Direction) {}
 }

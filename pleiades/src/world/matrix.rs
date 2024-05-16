@@ -1,33 +1,30 @@
 use super::OnDirection;
 use crate::apds9960::Direction;
 use crate::color::{Color, ColorGradient};
-use crate::led_matrix;
+use crate::led_matrix::WritableMatrix;
 use crate::perlin;
 use crate::world::utils::CooldownValue;
 use crate::world::{Flush, Tick};
-use crate::ws2812::Ws2812;
 use core::marker::PhantomData;
-use embassy_rp::pio::Instance;
 use embassy_time::{Duration, Ticker};
 use heapless::Vec;
-use pleiades_macro_derive::{Flush, From, Into};
+use pleiades_macro_derive::Flush;
 use smart_leds::RGB8;
 
 const SPARKS_COOLDOWN: u8 = 3;
 const SPARKS_MIN_CHANCE: usize = 2;
 const SPARKS_MAX_CHANCE: usize = 5;
 
-#[derive(Flush, Into, From)]
+#[derive(Flush)]
 pub struct Matrix<
-    'a,
-    P: Instance,
-    const S: usize,
-    const L: usize,
+    'led,
+    Led: WritableMatrix,
     const C: usize,
+    const L: usize,
     const N: usize,
     const N2: usize,
 > {
-    led: led_matrix::LedMatrix<'a, P, S, L, C, N>,
+    led: &'led mut Led,
     colormap: ColorGradient<C>,
     letters: Vec<Letters, N2>,
     ticker: Ticker,
@@ -36,13 +33,16 @@ pub struct Matrix<
     t: usize,
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize, const N2: usize>
-    Matrix<'a, P, S, L, C, N, N2>
-where
-    P: Instance,
+impl<
+        'led,
+        Led: WritableMatrix,
+        const C: usize,
+        const L: usize,
+        const N: usize,
+        const N2: usize,
+    > Matrix<'led, Led, C, L, N, N2>
 {
-    pub fn new(ws: Ws2812<'a, P, S, N>) -> Self {
-        let led = led_matrix::LedMatrix::new(ws);
+    pub fn new(led: &'led mut Led) -> Self {
         let ticker = Ticker::every(Duration::from_millis(30));
         let mut colormap = ColorGradient::new();
         let spawn_chance = CooldownValue::new(2);
@@ -65,10 +65,14 @@ where
     }
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize, const N2: usize> Tick
-    for Matrix<'a, P, S, L, C, N, N2>
-where
-    P: Instance,
+impl<
+        'led,
+        Led: WritableMatrix,
+        const C: usize,
+        const L: usize,
+        const N: usize,
+        const N2: usize,
+    > Tick for Matrix<'led, Led, C, L, N, N2>
 {
     async fn tick(&mut self) {
         self.led.clear();
@@ -93,10 +97,14 @@ where
     }
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize, const N2: usize>
-    Matrix<'a, P, S, L, C, N, N2>
-where
-    P: Instance,
+impl<
+        'led,
+        Led: WritableMatrix,
+        const C: usize,
+        const L: usize,
+        const N: usize,
+        const N2: usize,
+    > Matrix<'led, Led, C, L, N, N2>
 {
     fn spawn_letters(&mut self) {
         let chance = perlin::rand_float(0.0, 1.0);
@@ -162,10 +170,14 @@ where
     }
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize, const N2: usize>
-    OnDirection for Matrix<'a, P, S, L, C, N, N2>
-where
-    P: Instance,
+impl<
+        'led,
+        Led: WritableMatrix,
+        const C: usize,
+        const L: usize,
+        const N: usize,
+        const N2: usize,
+    > OnDirection for Matrix<'led, Led, C, L, N, N2>
 {
     fn on_direction(&mut self, direction: Direction) {
         match direction {

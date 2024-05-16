@@ -1,17 +1,15 @@
 use super::OnDirection;
 use crate::apds9960::Direction;
 use crate::color::ColorGradient;
-use crate::led_matrix;
+use crate::led_matrix::WritableMatrix;
 use crate::perlin;
 use crate::world::utils::CooldownValue;
 use crate::world::{Flush, Tick};
-use crate::ws2812::Ws2812;
 use core::cmp::max;
 use embassy_rp::clocks::RoscRng;
-use embassy_rp::pio::Instance;
 use embassy_time::{Duration, Ticker};
 use heapless::Vec;
-use pleiades_macro_derive::{Flush, From, Into};
+use pleiades_macro_derive::Flush;
 use rand::Rng;
 use smart_leds::hsv::Hsv;
 use smart_leds::RGB8;
@@ -24,9 +22,9 @@ const COLORS: usize = 4;
 const MAX_SPARKS: usize = 2;
 const SPAWN_COOLDOWN: usize = 60;
 
-#[derive(Flush, Into, From)]
-pub struct Fire<'a, P: Instance, const S: usize, const L: usize, const C: usize, const N: usize> {
-    led: led_matrix::LedMatrix<'a, P, S, L, C, N>,
+#[derive(Flush)]
+pub struct Fire<'led, Led: WritableMatrix, const C: usize, const L: usize> {
+    led: &'led mut Led,
     noise: perlin::PerlinNoise,
     colormap: ColorGradient<COLORS>,
     height: CooldownValue<HEIGHT_COOLDOWN, HEIGHT_MIN, HEIGHT_MAX>,
@@ -36,14 +34,10 @@ pub struct Fire<'a, P: Instance, const S: usize, const L: usize, const C: usize,
     t: usize,
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize> Fire<'a, P, S, L, C, N>
-where
-    P: Instance,
-{
-    pub fn new(ws: Ws2812<'a, P, S, N>) -> Self {
-        let led = led_matrix::LedMatrix::new(ws);
+impl<'led, Led: WritableMatrix, const C: usize, const L: usize> Fire<'led, Led, C, L> {
+    pub fn new(led: &'led mut Led) -> Self {
         let noise = perlin::PerlinNoise::new();
-        let colormap = Fire::<P, S, L, C, N>::get_colormap();
+        let colormap = Fire::<'led, Led, C, L>::get_colormap();
         let height = CooldownValue::new(HEIGHT_INIT);
         let ticker = Ticker::every(Duration::from_millis(35));
         let sparks: Vec<Spark, MAX_SPARKS> = Vec::new();
@@ -93,11 +87,7 @@ where
     }
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize> Tick
-    for Fire<'a, P, S, L, C, N>
-where
-    P: Instance,
-{
+impl<'led, Led: WritableMatrix, const C: usize, const L: usize> Tick for Fire<'led, Led, C, L> {
     async fn tick(&mut self) {
         self.led.clear();
 
@@ -133,10 +123,7 @@ where
     }
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize> Fire<'a, P, S, L, C, N>
-where
-    P: Instance,
-{
+impl<'led, Led: WritableMatrix, const C: usize, const L: usize> Fire<'led, Led, C, L> {
     fn spawn_spark(&mut self, x: usize, height: usize) {
         self.spawn_counter += 1;
         if height < (C - 1)
@@ -197,10 +184,8 @@ where
     }
 }
 
-impl<'a, P, const S: usize, const L: usize, const C: usize, const N: usize> OnDirection
-    for Fire<'a, P, S, L, C, N>
-where
-    P: Instance,
+impl<'led, Led: WritableMatrix, const C: usize, const L: usize> OnDirection
+    for Fire<'led, Led, C, L>
 {
     fn on_direction(&mut self, direction: Direction) {
         match direction {
