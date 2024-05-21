@@ -1,7 +1,6 @@
 use crate::perlin::rand_float;
 use core::cmp::max;
 use core::cmp::Ordering;
-use core::usize;
 use heapless::Vec;
 use smart_leds::hsv::{hsv2rgb, Hsv};
 use smart_leds::RGB8;
@@ -58,6 +57,12 @@ pub struct ColorGradient<const COLORS: usize> {
     colors: Vec<Color, COLORS>,
     hsv: [Hsv; COLORS],
     diff: i8,
+}
+
+impl<const COLORS: usize> Default for ColorGradient<COLORS> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<const COLORS: usize> ColorGradient<COLORS> {

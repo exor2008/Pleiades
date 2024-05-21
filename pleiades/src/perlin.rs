@@ -14,22 +14,26 @@ pub struct PerlinNoise {
     fallout: f32,
 }
 
+impl Default for PerlinNoise {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PerlinNoise {
     pub fn new() -> PerlinNoise {
         let mut rng = RoscRng;
 
         let mut perm = [0; 512];
 
-        for i in 0..256 {
-            perm[i] = i;
+        for (i, p) in perm.iter_mut().enumerate().take(256) {
+            *p = i;
         }
 
         for i in 0..256 {
             let j = rng.gen_range(0..256) & 0xFF;
-            let t = perm[j];
 
-            perm[j] = perm[i];
-            perm[i] = t;
+            perm.swap(j, i);
         }
 
         for i in 0..256 {

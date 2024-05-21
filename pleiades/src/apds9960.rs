@@ -123,12 +123,6 @@ impl<'d, T: Instance> Apds9960<'d, T, i2c::Async> {
     }
 }
 
-impl<'d, T: Instance, M: Mode> Into<i2c::I2c<'d, T, M>> for Apds9960<'d, T, M> {
-    fn into(self) -> i2c::I2c<'d, T, M> {
-        self.i2c
-    }
-}
-
 #[derive(Default)]
 struct StateMashine {
     state: State,
@@ -218,7 +212,7 @@ impl StateMashine {
                         State::Record
                     }
                     // ... switch the power
-                    checks if checks == 20 => {
+                    20 => {
                         // Power Switch
                         self.command = Some(Command::SwitchPower);
                         self.power_checks += 1;
@@ -306,15 +300,10 @@ impl defmt::Format for Direction {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 enum State {
+    #[default]
     Check,
     Swing,
     Record,
-}
-
-impl Default for State {
-    fn default() -> Self {
-        State::Check
-    }
 }

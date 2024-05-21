@@ -24,6 +24,7 @@ pub trait OnDirection {
     fn on_direction(&mut self, direction: Direction);
 }
 
+#[allow(clippy::large_enum_variant)]
 #[enum_world(Empty, Fire, NorthenLight, Matrix, Voronoi, StarryNight, Solid)]
 pub enum World<
     'led,
@@ -46,6 +47,12 @@ pub struct Switch {
     counter: usize,
     prev_counter: usize,
     is_on: bool,
+}
+
+impl Default for Switch {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Switch {

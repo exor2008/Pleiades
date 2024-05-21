@@ -75,12 +75,11 @@ impl<'led, Led: WritableMatrix, const C: usize, const L: usize> Fire<'led, Led, 
             }
         }
 
-        for y in 0..L {
-            for x in 0..C {
+        for (y, buffer) in buffer.iter().enumerate().take(L) {
+            for (x, buffer) in buffer.iter().enumerate().take(C) {
                 let color = self.led.read(x, y);
                 if color == RGB8::default() {
-                    let c = buffer[x][y];
-                    self.led.write(x, y, c);
+                    self.led.write(x, y, *buffer);
                 }
             }
         }
@@ -136,7 +135,7 @@ impl<'led, Led: WritableMatrix, const C: usize, const L: usize> Fire<'led, Led, 
             };
             self.spawn_counter = 0;
             // Do not spawn spark if it's already too many sparks
-            if let Err(_) = self.sparks.push(spark) {}
+            if self.sparks.push(spark).is_err() {}
         }
     }
 

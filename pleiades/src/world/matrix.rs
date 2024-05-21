@@ -118,7 +118,7 @@ impl<
             let move_after = perlin::rand_uint(1, 12) as usize;
 
             let letter = Letters::new_falling(x, 0, move_after, temperature, cool_rate);
-            if let Err(_) = self.letters.push(letter) {
+            if self.letters.push(letter).is_err() {
                 defmt::error!("Pushing letter in full vector while spawning.");
             }
         }
@@ -132,7 +132,7 @@ impl<
                 if l.down() {
                     let letter =
                         Letters::new_stationary(l.x, l.y - 1, l.temperature - 0.2, l.cool_rate);
-                    if let Err(_) = tmp_letters.push(letter) {
+                    if tmp_letters.push(letter).is_err() {
                         defmt::error!("Pushing letter in full tmp vector.")
                     }
                 }

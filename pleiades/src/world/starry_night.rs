@@ -17,7 +17,6 @@ const FRAMES_MIN: usize = 10;
 const FRAMES_MAX: usize = 30;
 const FRAMES_COOLDOWN: u8 = 1;
 const STAR_SPAWN_COOLDOWN: usize = 10;
-const X_COOLDOWN: usize = 0;
 const Y_COOLDOWN: usize = 1;
 
 #[derive(Flush)]
@@ -102,8 +101,8 @@ impl<'led, Led: WritableMatrix, const C: usize, const L: usize, const N: usize>
         let rnd = perlin::rand_uint(0, 100) as usize;
         let shift = perlin::rand_float(0.1, 0.8);
 
-        for x in 0..C {
-            for y in 0..L {
+        for (x, buffer) in buffer.iter_mut().enumerate().take(C) {
+            for (y, buffer) in buffer.iter_mut().enumerate().take(L) {
                 let xx = (x.wrapping_add(rnd)) as f32 / 5.0;
                 let yy = (y.wrapping_add(rnd)) as f32 / 5.0;
 
@@ -115,7 +114,7 @@ impl<'led, Led: WritableMatrix, const C: usize, const L: usize, const N: usize>
                     (noise + shift).min(1.0)
                 };
 
-                buffer[x][y] = bg_colormap.get_noised(noise, -0.1, 0.1)
+                *buffer = bg_colormap.get_noised(noise, -0.1, 0.1)
             }
         }
 
@@ -198,7 +197,6 @@ impl<'led, Led: WritableMatrix, const C: usize, const L: usize, const N: usize> 
 struct Star<const C: usize, const L: usize> {
     x: usize,
     y: usize,
-    since_x_moved: usize,
     since_y_moved: usize,
     temperature: f32,
 }
@@ -207,7 +205,6 @@ impl<const C: usize, const L: usize> Star<C, L> {
     fn new() -> Self {
         let x = perlin::rand_int(0, C as i32) as usize;
         let y = L - 1;
-        let since_x_moved = 0;
         let since_y_moved = 0;
 
         let temperature = perlin::fair_rand_float();
@@ -215,18 +212,13 @@ impl<const C: usize, const L: usize> Star<C, L> {
         Star {
             x,
             y,
-            since_x_moved,
             since_y_moved,
             temperature,
         }
     }
+
     fn go(&mut self) {
-        if self.since_x_moved >= X_COOLDOWN {
-            self.x = if self.x < C - 1 { self.x + 1 } else { 0 };
-            self.since_x_moved = 0
-        } else {
-            self.since_x_moved += 1
-        }
+        self.x = if self.x < C - 1 { self.x + 1 } else { 0 };
 
         if self.since_y_moved >= Y_COOLDOWN {
             self.y -= 1;

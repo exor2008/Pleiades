@@ -37,7 +37,7 @@ impl<'led, Led: WritableMatrix, const C: usize, const L: usize, const N: usize>
         let time = PI / 2.0;
         let mut model: Model<L, C> = Model::new();
         let buffer_new = model.step(time);
-        let buffer_old = buffer_new.clone();
+        let buffer_old = buffer_new;
 
         Self {
             led,
@@ -123,8 +123,11 @@ impl<const L: usize, const C: usize> Point<L, C> {
     fn wrap_go(var: isize, shift: isize, border: isize) -> isize {
         let var = var + shift;
         let var = if var < 0 { border - 1 } else { var };
-        let var = if var >= border - 1 { 0 } else { var };
-        var
+        if var >= border - 1 {
+            0
+        } else {
+            var
+        }
     }
 
     fn change_dir(&mut self) {
@@ -188,7 +191,7 @@ impl<const L: usize, const C: usize> Model<L, C> {
                 }
                 false => {
                     let point: Point<L, C> = Point::<L, C>::new();
-                    if let Err(_) = self.points.push(point) {
+                    if self.points.push(point).is_err() {
                         defmt::error!("Overflow while trying to spawn a new point.")
                     }
                 }
@@ -203,8 +206,8 @@ impl<const L: usize, const C: usize> Model<L, C> {
         let mut buffer = [[RGB8::default(); L]; C];
         let sin = (time.sin() + 1.0) / 2.0; // [0..1]
 
-        for x in 0..C {
-            for y in 0..L {
+        for (x, index_matrix) in index_matrix.iter_mut().enumerate().take(C) {
+            for (y, index_matrix) in index_matrix.iter_mut().enumerate().take(L) {
                 // Vector of distances from every LED to every Point
                 let dist: Vec<isize, POINTS_MAX> = self
                     .points
@@ -223,7 +226,7 @@ impl<const L: usize, const C: usize> Model<L, C> {
                     .min_by(|(_, a), (_, b)| a.cmp(b))
                     .map(|(index, _)| index)
                 {
-                    index_matrix[x][y] = index;
+                    *index_matrix = index;
                 }
             }
         }

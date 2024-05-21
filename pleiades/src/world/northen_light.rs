@@ -163,7 +163,7 @@ impl<const L: usize, const C: usize, const N: usize> Pattern<L, C, N> {
                 let yy = (y.wrapping_add(t)) as f32 / 5.0;
                 // let zz = t as f32;
 
-                let noise = noise.get2d([xx, yy]) as f32;
+                let noise = noise.get2d([xx, yy]);
                 let noise = noise - cutoff;
                 let noise = if noise <= 0.0 {
                     0.0
@@ -207,12 +207,12 @@ impl<'a, const L: usize, const C: usize, const N: usize> Sum<&'a Pattern<L, C, N
         let mut sum_data: [f32; N] = [0.0; N];
 
         for item in iter {
-            for i in 0..N {
-                sum_data[i] = sum_data[i] + item.impact(i);
+            for (i, sum_data) in sum_data.iter_mut().enumerate().take(N) {
+                *sum_data += item.impact(i);
             }
         }
-        for i in 0..N {
-            sum_data[i] = sum_data[i].clamp(0.0, 1.0)
+        for sum_data in sum_data.iter_mut().take(N) {
+            *sum_data += sum_data.clamp(0.0, 1.0)
         }
         Pattern::from(sum_data)
     }
