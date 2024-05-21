@@ -15,13 +15,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Install deps for probe-rs
-      run: sudo apt install -y pkg-config libusb-1.0-0-dev libftdi1-dev libudev-dev libssl-dev
     - name: Install elf to uf2 converter
       run: cargo install elf2uf2-rs
-    - name: Install probe-rs
-      run: cargo install probe-rs --locked --features cli --version 0.23.0
     - name: Build
       run: |
         cd pleiades
