@@ -5,7 +5,7 @@ LED lantern based on RP2040 raspberry pi pico
 [![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/gmsWFZkWBEI/0.jpg)](https://youtu.be/gmsWFZkWBEI)
 
 ### Instructions
-[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/F5HVr7ZAOYw/0.jpg)](https://youtu.be/gmsWFZkWBEI)
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/F5HVr7ZAOYw/0.jpg)](https://www.youtube.com/shorts/F5HVr7ZAOYw)
 
 ### Wiring scheme
 <img src="scheme/Wire.png" alt="drawing"/>
