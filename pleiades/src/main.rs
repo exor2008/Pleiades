@@ -55,7 +55,7 @@ async fn main(spawner: Spawner) {
         mut common, sm0, ..
     } = Pio::new(p.PIO0, Irqs);
 
-    Init WS2812 LED controller
+    // Init WS2812 LED controller
     let mut ws2812: Ws2812<PIO0, STATE_MACHINE, NUM_LEDS> =
         Ws2812::new(&mut common, sm0, p.DMA_CH0, p.PIN_22);
 
